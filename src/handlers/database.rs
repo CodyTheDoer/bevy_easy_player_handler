@@ -1,45 +1,26 @@
 use bevy::prelude::*;
 
+use bevy_easy_shared_definitions::DatabaseConnection;
+
 use dotenv::dotenv;
 use std::{
     env,
     env::VarError,
-    sync::{
-        Arc,
-        Mutex,
-    }
 };
-use rusqlite::{
-    Connection, 
-    Result,
-};
+use rusqlite::Result;
 use uuid::Uuid;
 
 use crate::{
     BevyEasyPlayerHandlerPlugin,
-    DatabaseConnection,
-    DatabaseInterchange,
+    PlayerHandlerDatabaseCommands,
     DBPlayer,
     ErrorType,
     Party,
 };
 
-impl DatabaseConnection {
-    pub fn new(path: &str) -> Self {
-        let conn = Connection::open(path).expect("Failed to open SQLite database");
-        Self {
-            conn: Arc::new(Mutex::new(conn)),
-        }
-    }
-
-    pub fn get_connection(&self) -> Arc<Mutex<Connection>> {
-        self.conn.clone()
-    }
-}
-
-impl DatabaseInterchange {
+impl PlayerHandlerDatabaseCommands {
     pub fn get() -> Self {
-        DatabaseInterchange {}
+        PlayerHandlerDatabaseCommands {}
     }
 
     pub fn pipeline_init_test_ref_and_main_player(

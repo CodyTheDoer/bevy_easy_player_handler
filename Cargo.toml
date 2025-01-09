@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Cody Williams <me@codythedoer.com>"]
 description = "Easy Player handler, built to Utilize Uuid and handle party interactions with a local SQLite DB."
-repository = "https://github.com/CodyTheDoer/bevy_easy_vec_ui"
+repository = "https://github.com/CodyTheDoer/bevy_easy_player_handler"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy", "Party", "Players", "SQLite", "Handler"]
 readme = "README.md"
@@ -13,4 +13,5 @@ readme = "README.md"
 bevy = "0.14.2"
 dotenv = "0.15.0"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
+bevy_easy_shared_definitions = { git = "https://github.com/CodyTheDoer/bevy_easy_shared_definitions" }
 uuid = { version = "1.11.0",  features = [ "v4",  "v7", "fast-rng", "macro-diagnostics" ] }

@@ -1,17 +1,18 @@
 use bevy::prelude::*;
 
+use bevy_easy_shared_definitions::DatabaseConnection;
+
 use rusqlite::Result;
 use uuid::Uuid;
 
 use crate::{
-    DatabaseConnection,
-    DatabaseInterchange,
+    PlayerHandlerDatabaseCommands,
     DBPlayer,
     ErrorType,
     Party,
 };
 
-impl DatabaseInterchange {
+impl PlayerHandlerDatabaseCommands {
     pub fn query_existing_players(
         &self,
         db: &Res<DatabaseConnection>,

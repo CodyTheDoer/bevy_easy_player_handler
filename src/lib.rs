@@ -1,13 +1,14 @@
-pub mod database;
-pub mod handlers;
-
 use bevy::prelude::*;
+
+use bevy_easy_shared_definitions::DatabaseConnection;
 
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use rusqlite::Connection;
 use uuid::Uuid;
+
+pub mod database;
+pub mod handlers;
 
 #[derive(Clone, Resource)]
 pub struct BevyEasyPlayerHandlerPlugin {
@@ -74,12 +75,12 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
     fn build(&self, app: &mut App) { // Builds automatically on .add_plugins() call
         // Ensure the database connection exists as a resource
         if !app.world().contains_resource::<DatabaseConnection>() {
-            panic!("DatabaseConnection resource is missing. Ensure the host app provides it.");
+            panic!("ERROR: [ DatabaseConnection ] resource is missing. Ensure the host app provides it.");
         }
 
         // Insert the plugin itself as a resource
         app.insert_resource(self.clone());
-        app.insert_resource(DatabaseInterchange::get());
+        app.insert_resource(PlayerHandlerDatabaseCommands::get());
 
         let party = Party::new(
             self.main_player_email.as_ref().unwrap(), 
@@ -93,13 +94,8 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
     }
 }
 
-#[derive(Resource)] // This resource call needs to exist in host and plugin
-pub struct DatabaseConnection {
-    pub conn: Arc<Mutex<Connection>>,
-}
-
 #[derive(Resource)]
-pub struct DatabaseInterchange {}
+pub struct PlayerHandlerDatabaseCommands {}
 
 #[derive(Clone, Debug)]
 pub struct DBPlayer {
@@ -177,7 +173,7 @@ pub struct PlayerRemote {
 
 pub fn start_up_protocol(
     db: Res<DatabaseConnection>,
-    dbi: Res<DatabaseInterchange>,
+    dbi: Res<PlayerHandlerDatabaseCommands>,
     plugin: Res<BevyEasyPlayerHandlerPlugin>,
     mut party: ResMut<Party>,
 ) {
@@ -222,7 +218,7 @@ pub fn start_up_protocol(
     if !players_test_ref_and_owner_exists {
         match dbi.pipeline_init_test_ref_and_main_player(&db, plugin, &mut party) {
             Ok(_) => info!("Database: Records [ test_ref ] & [ main_player ] created successfully!"),
-            Err(ErrorType::DBActionFailedPlayerCreation) => warn!("Error: Failed to create main 'player'..."),
+            Err(ErrorType::DBActionFailedPlayerCreation) => warn!("Error: Failed to create 'player'..."),
             Err(e) => warn!("Error: start_up_protocol -> init_test_ref_and_main_player: {:?}", e)
         }
     }
