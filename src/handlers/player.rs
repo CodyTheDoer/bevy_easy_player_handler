@@ -9,11 +9,11 @@ use crate::{
 use uuid::Uuid;
 
 impl Player for PlayerAi {
-    fn new(player_email: Option<String>, player_user_name: Option<String>) -> Self {
+    fn new(player_email: Option<String>, player_user_name: Option<String>, player_type: PlayerType) -> Self {
         PlayerAi {
             player_email: player_email.map(|email| email),
             player_id: Uuid::now_v7(),
-            player_type: PlayerType::PlayerAi,
+            player_type: player_type,
             player_user_name: player_user_name.map(|user_name| user_name), 
         }
     }
@@ -51,11 +51,11 @@ impl Player for PlayerAi {
 // --------------------------------------- //
 
 impl Player for PlayerLocal {
-    fn new(player_email: Option<String>, player_user_name: Option<String>) -> Self {
+    fn new(player_email: Option<String>, player_user_name: Option<String>, player_type: PlayerType) -> Self {
         PlayerLocal {
             player_email: player_email.map(|email| email),
             player_id: Uuid::now_v7(),
-            player_type: PlayerType::PlayerLocal,
+            player_type: player_type,
             player_user_name: player_user_name.map(|user_name| user_name), 
         }
     }
@@ -93,11 +93,11 @@ impl Player for PlayerLocal {
 // --------------------------------------- //
 
 impl Player for PlayerRemote {
-    fn new(player_email: Option<String>, player_user_name: Option<String>) -> Self {
+    fn new(player_email: Option<String>, player_user_name: Option<String>, player_type: PlayerType) -> Self {
         PlayerRemote {
             player_email: player_email.map(|email| email),
             player_id: Uuid::now_v7(),
-            player_type: PlayerType::PlayerRemote,
+            player_type: player_type,
             player_user_name: player_user_name.map(|user_name| user_name), 
         }
     }

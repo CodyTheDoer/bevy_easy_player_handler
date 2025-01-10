@@ -6,10 +6,10 @@ use rusqlite::Result;
 use uuid::Uuid;
 
 use crate::{
-    PlayerHandlerDatabaseCommands,
-    DBPlayer,
-    ErrorType,
-    Party,
+    DBPlayer, 
+    ErrorType, 
+    PlayerHandlerDatabaseCommands, 
+    PlayerType,
 };
 
 impl PlayerHandlerDatabaseCommands {
@@ -44,36 +44,6 @@ impl PlayerHandlerDatabaseCommands {
         info!("Party Players Count: [{:?}]", party_player_count_query);
 
         Ok(party_player_count_query)
-    }
-
-    pub fn action_sync_party_and_db_main_player(
-        &self,
-        db: &Res<DatabaseConnection>,
-        party: &mut ResMut<Party>,
-    ) -> Result<(), ErrorType> {
-        info!("Init: action_sync_party_and_db_main_player:");
-
-        let party_main_player_uuid = party.main_player_clone_player_id();
-        let database_main_player = match self.action_query_main_player(&db) {
-            Ok(dbplayer) => dbplayer,
-            Err(e) => {
-                warn!("[ Error ] action_sync_party_and_db_main_player -> action_query_main_player: [{:?}]", e);
-                return Err(ErrorType::DBQueryFailedPlayerTablePlayerMain);
-            },
-        };
-        let database_main_player_uuid = match Uuid::try_parse(database_main_player.uuid.as_str()) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                warn!("[ Error ] action_sync_party_and_db_main_player -> Uuid::try_parse(database_main_player.uuid.as_str()): [{:?}]", e);
-                return Err(ErrorType::UuidParsingFailed);
-            },
-        };
-
-        if party_main_player_uuid != database_main_player_uuid {
-            party.active_player_set_uuid(database_main_player_uuid);
-        };
-
-        Ok(())
     }
 
     pub fn action_table_player_init(
@@ -113,10 +83,10 @@ impl PlayerHandlerDatabaseCommands {
         main_player_uuid: String, 
         main_player_email: Option<String>, 
         main_player_username: Option<String>,
-        test_player: bool,
+        player_type: PlayerType,
     ) -> Result<(), ErrorType> {
         info!("Init: action_insert_player_record: Player [{}]", &main_player_uuid);
-        info!("UserName: [{:?}], Email: [{:?}], TestPlayer: [{}]", &main_player_username, &main_player_email, &test_player);
+        info!("UserName: [{:?}], Email: [{:?}], Player Type: [{:?}]", &main_player_username, &main_player_email, &player_type);
         
         // Get and Lock the mutex to access the database connection
         let conn = db.get_connection();
@@ -133,7 +103,14 @@ impl PlayerHandlerDatabaseCommands {
             "INSERT INTO player_table (uuid, email, user_name) VALUES (?1, ?2, ?3)",
             (main_player_uuid, main_player_email, main_player_username),
         )
-        .map_err(|_| if test_player {ErrorType::DBActionFailedPlayerTableInsertRecordTestRef} else {ErrorType::DBActionFailedPlayerTableInsertRecordPlayer})?;
+            .map_err(|_| match player_type {
+                PlayerType::PlayerAiLocal => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerAiLocal,
+                PlayerType::PlayerAiRemote => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerAiRemote,
+                PlayerType::PlayerLocal => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerLocal,
+                PlayerType::PlayerMain => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerMain,
+                PlayerType::PlayerRemote => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerRemote,
+                PlayerType::PlayerTestRef => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerTestRef,
+            })?;
 
         Ok(())
     }

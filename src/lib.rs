@@ -16,6 +16,7 @@ pub struct BevyEasyPlayerHandlerPlugin {
     main_player_user_name: Option<String>,
     main_player_uuid: Option<Uuid>,
     party_size: Option<i32>,
+    target_idx: Option<i32>,
 }
 
 impl BevyEasyPlayerHandlerPlugin {
@@ -25,6 +26,7 @@ impl BevyEasyPlayerHandlerPlugin {
             main_player_user_name: None,
             main_player_uuid: None,
             party_size: None,
+            target_idx: None,
         }
     }
 
@@ -48,16 +50,32 @@ impl BevyEasyPlayerHandlerPlugin {
         self
     }
 
+    pub fn target_idx(mut self, target_idx: i32) -> Self {
+        self.target_idx = Some(target_idx);
+        self
+    }
+
     pub fn default(mut self) -> Self {
         if self.main_player_uuid.is_none() {
             self.main_player_uuid = Some(Uuid::now_v7());
         }
+        
         if self.main_player_user_name.is_none() {
             self.main_player_user_name = Some(String::from(self.main_player_uuid.unwrap()));
         }
-        if self.party_size.is_none() {
-            self.party_size = Some(1);
-        }
+        
+        let party_size = match self.party_size {
+            Some(i32) => i32,
+            None => 1,
+        };
+        self.party_size = Some(party_size);
+
+        let target_idx = match self.target_idx {
+            Some(i32) => i32,
+            None => 0,
+        };
+        self.target_idx = Some(target_idx); 
+        
         self
     }
 
@@ -67,7 +85,24 @@ impl BevyEasyPlayerHandlerPlugin {
             main_player_user_name: self.main_player_user_name,
             main_player_uuid: self.main_player_uuid,
             party_size: self.party_size,
+            target_idx: self.target_idx,
         }
+    }
+
+    pub fn get_party_size_limit(&self) -> i32 {
+        self.party_size.unwrap()
+    }
+
+    pub fn get_target_idx(&self) -> Option<i32> {
+        self.target_idx
+    }
+
+    pub fn set_party_size_limit(&mut self, party_size: i32) {
+        self.party_size = Some(party_size);
+    }
+
+    pub fn set_target_idx(&mut self, target_idx: i32) {
+        self.target_idx = Some(target_idx);
     }
 }
 
@@ -90,7 +125,7 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
         app.insert_resource(party);
 
         // Add the startup protocol system
-        app.add_systems(Startup, start_up_protocol);
+        app.add_systems(Startup, PlayerHandlerDatabaseCommands::start_up_protocol);
     }
 }
 
@@ -106,18 +141,27 @@ pub struct DBPlayer {
 
 #[derive(Debug)]
 pub enum ErrorType {
+    AddPlayerFromDbToPartyFailedPlayerAlreadyInParty,
+    AddPlayerFromDbToPartyFailedPlayerTestReference,
     DatabaseLockPoisoned,
-    DBActionFailedPlayerTableInsertRecordPlayer,
-    DBDeleteFailedPlayerTableDropAllRecords,
     DBActionFailedPlayerCreation,
     DBActionFailedPlayerTableCreation,
-    DBActionFailedPlayerTableInsertRecordTestRef,
+    DBDeleteFailedPlayerTableDropAllRecords,
+    DBActionFailedPlayerTableInsertRecordPlayerAiLocal,
+    DBActionFailedPlayerTableInsertRecordPlayerAiRemote,
+    DBActionFailedPlayerTableInsertRecordPlayerLocal,
+    DBActionFailedPlayerTableInsertRecordPlayerMain,
+    DBActionFailedPlayerTableInsertRecordPlayerRemote,
+    DBActionFailedPlayerTableInsertRecordPlayerTestRef,
     DBDeleteFailedPlayerRecordFromPlayerTable,
     DBQueryFailedExistingPlayers,
     DBQueryFailedPlayerCount,
     DBQueryFailedPlayerTablePlayerMain,
     DBQueryFailedVerifyPlayerTableExists,
     DBQueryMappingFailedExistingPlayers,
+    MatchTargetUuidToExistingPlayerInDatabaseNoPlayerAddedToPartyFailed,
+    PartySizeAtSetLimit,
+    PartySizeGreaterThanSetLimit,
     UuidParsingFailed,
 }
 
@@ -130,7 +174,7 @@ pub struct Party {
 }
 
 pub trait Player {
-    fn new(player_email: Option<String>, player_user_name: Option<String>) -> Self where Self: Sized;
+    fn new(player_email: Option<String>, player_user_name: Option<String>, player_type: PlayerType) -> Self where Self: Sized;
     fn get_player_email(&self) -> &Option<String>;
     fn get_player_id(&self) -> &Uuid;
     fn get_player_type(&self) -> &PlayerType;
@@ -142,9 +186,12 @@ pub trait Player {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PlayerType {
-    PlayerAi,
+    PlayerAiLocal,
+    PlayerAiRemote,
     PlayerLocal,
+    PlayerMain,
     PlayerRemote,
+    PlayerTestRef,
 }
 
 #[derive(Clone, Resource)]
@@ -169,80 +216,4 @@ pub struct PlayerRemote {
     player_id: Uuid,
     player_type: PlayerType,
     player_user_name: Option<String>,
-}
-
-pub fn start_up_protocol(
-    db: Res<DatabaseConnection>,
-    dbi: Res<PlayerHandlerDatabaseCommands>,
-    plugin: Res<BevyEasyPlayerHandlerPlugin>,
-    mut party: ResMut<Party>,
-) {
-    info!("BevyEasyPlayerHandler: [ Start Up Protocol ]");
-
-    // ----- [ Vertify database table "player_table" exists ] ----- //
-
-    let player_table_exists = match dbi.query_table_player_exists(&db) {
-        Ok(exists) => {
-            exists
-        },
-        Err(e) => {
-            warn!("Error: start_up_protocol -> query_table_player_exists: {:?}", e);
-            false // Assume the table does not exist on unexpected errors
-        }
-    };
-
-    info!("Result [query_table_player_exists]: [{}]", player_table_exists);
-
-    if !player_table_exists {
-        match dbi.action_table_player_init(&db) {
-            Ok(_) => info!("Table: 'player_table' created successfully!"),
-            Err(ErrorType::DBActionFailedPlayerTableCreation) => warn!("Error: Failed to create 'player_table'..."),
-            Err(e) => warn!("Error: start_up_protocol -> action_table_player_init: {:?}", e)
-        };
-    }
-
-    // ----- [ Vertify database test ref and main player exists ] ----- //
-
-    let players_test_ref_and_owner_exists = match dbi.query_test_ref_and_main_player_exists(&db) {
-        Ok(does_exist) => {
-            does_exist
-        },
-        Err(e) => {
-            warn!("Error: start_up_protocol -> query_test_ref_and_main_player_exists: {:?}", e);
-            false // Assume the test ref and main players do not exist on unexpected errors
-        }
-    };
-
-    info!("Result [query_test_ref_and_main_player_exists]: [{}]", players_test_ref_and_owner_exists);
-
-    if !players_test_ref_and_owner_exists {
-        match dbi.pipeline_init_test_ref_and_main_player(&db, plugin, &mut party) {
-            Ok(_) => info!("Database: Records [ test_ref ] & [ main_player ] created successfully!"),
-            Err(ErrorType::DBActionFailedPlayerCreation) => warn!("Error: Failed to create 'player'..."),
-            Err(e) => warn!("Error: start_up_protocol -> init_test_ref_and_main_player: {:?}", e)
-        }
-    }
-
-    // ----- [ Sync party and database main players uuid ] ----- //
-
-    let party_and_database_main_player_synced = match dbi.query_party_and_db_main_player_synced(&db, &mut party) {
-        Ok(synced) => {
-            synced
-        },
-        Err(e) => {
-            warn!("Error: start_up_protocol -> query_party_and_db_main_player_synced: {:?}", e);
-            false // Assume the table does exist on unexpected errors
-        }
-    };
-    
-    info!("Result [query_party_and_db_main_player_synced]: [{}]", party_and_database_main_player_synced);
-
-    if !party_and_database_main_player_synced {
-        match dbi.action_sync_party_and_db_main_player(&db, &mut party) {
-            Ok(_) => info!("Party: Database and Party [ main_player ] synced successfully!"),
-            Err(ErrorType::DBQueryFailedPlayerTablePlayerMain) => warn!("Error: Failed to query main player..."),
-            Err(ErrorType::UuidParsingFailed) => warn!("Error: Failed to parse uuid..."),
-            Err(e) => warn!("Error: start_up_protocol -> action_sync_party_and_db_main_player: {:?}", e)
-        }
-    }
 }

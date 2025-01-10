@@ -17,7 +17,7 @@ impl Party {
         let active_player: i32 = 1;
         let ai_vec: Option<Vec<usize>> = None;
         let party_size: i32 = party_size;
-        let players: Arc<Mutex<Vec<Arc<Mutex<dyn Player + Send>>>>> = Arc::new(Mutex::new(vec![Arc::new(Mutex::new(PlayerLocal::new(Some(main_player_email.to_owned()), Some(main_player_user_name.to_owned()))))]));
+        let players: Arc<Mutex<Vec<Arc<Mutex<dyn Player + Send>>>>> = Arc::new(Mutex::new(vec![Arc::new(Mutex::new(PlayerLocal::new(Some(main_player_email.to_owned()), Some(main_player_user_name.to_owned()), PlayerType::PlayerLocal)))]));
         Party {
             active_player,
             ai_vec,
@@ -110,13 +110,39 @@ impl Party {
         id_type_storage
     }
 
-    pub fn get_player_count_ai(&self) -> usize {
+    pub fn get_player_count_ai_total(&self) -> usize {
         let mut count: usize = 0;
         let players_lock = self.players.lock().unwrap();
         for player in players_lock.iter() {
             let player_type = player.lock().unwrap();
             let player_ref = player_type.get_player_type();
-            if player_ref == &PlayerType::PlayerAi {
+            if player_ref == &PlayerType::PlayerAiLocal || player_ref == &PlayerType::PlayerAiRemote {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    pub fn get_player_count_ai_local(&self) -> usize {
+        let mut count: usize = 0;
+        let players_lock = self.players.lock().unwrap();
+        for player in players_lock.iter() {
+            let player_type = player.lock().unwrap();
+            let player_ref = player_type.get_player_type();
+            if player_ref == &PlayerType::PlayerAiLocal {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    pub fn get_player_count_ai_remote(&self) -> usize {
+        let mut count: usize = 0;
+        let players_lock = self.players.lock().unwrap();
+        for player in players_lock.iter() {
+            let player_type = player.lock().unwrap();
+            let player_ref = player_type.get_player_type();
+            if player_ref == &PlayerType::PlayerAiRemote {
                 count += 1;
             }
         }
@@ -161,7 +187,7 @@ impl Party {
         for (index, player) in players_lock.iter().enumerate() {
             let player_type = player.lock().unwrap();
             let player_ref = player_type.get_player_type();
-            if player_ref == &PlayerType::PlayerAi {
+            if player_ref == &PlayerType::PlayerAiLocal || player_ref == &PlayerType::PlayerAiRemote {
                 ai_index.push(index);
             };
         }
@@ -202,13 +228,26 @@ impl Party {
         }
     }
     
-    pub fn players_remove_ai(&self) {
+    pub fn players_remove_ai_local(&self) {
         let mut players_lock = self.players.lock().unwrap(); // Acquire the lock to get mutable access
     
         // Iterate through players and find the index of the first occurrence of "PlayerAi".
         if let Some(index) = players_lock.iter().position(|player| {
             let player_lock = player.lock().unwrap();
-            player_lock.get_player_type() == &PlayerType::PlayerAi
+            player_lock.get_player_type() == &PlayerType::PlayerAiLocal
+        }) {
+            // Remove the player at the found index
+            players_lock.remove(index);
+        }
+    }
+    
+    pub fn players_remove_ai_remote(&self) {
+        let mut players_lock = self.players.lock().unwrap(); // Acquire the lock to get mutable access
+    
+        // Iterate through players and find the index of the first occurrence of "PlayerAi".
+        if let Some(index) = players_lock.iter().position(|player| {
+            let player_lock = player.lock().unwrap();
+            player_lock.get_player_type() == &PlayerType::PlayerAiRemote
         }) {
             // Remove the player at the found index
             players_lock.remove(index);
