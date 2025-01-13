@@ -1,22 +1,23 @@
 use bevy::prelude::*;
 
-use bevy_easy_shared_definitions::DatabaseConnection;
+use bevy_easy_shared_definitions::{
+    DatabaseConnection, 
+    ErrorTypePlayerHandler,
+};
 
 use rusqlite::Result;
 use uuid::Uuid;
 
 use crate::{
-    DBPlayer, 
-    ErrorType, 
-    PlayerHandlerDatabaseCommands, 
+    PlayerHandlerInterface, 
     PlayerType,
 };
 
-impl PlayerHandlerDatabaseCommands {
+impl PlayerHandlerInterface {
     pub fn action_count_players_in_db(
         &self,
         db: &Res<DatabaseConnection>,
-    ) -> Result<i32, ErrorType> {
+    ) -> Result<i32, ErrorTypePlayerHandler> {
         info!("Init: action_count_players_in_db:");
         
         // Get and Lock the mutex to access the database connection
@@ -26,7 +27,7 @@ impl PlayerHandlerDatabaseCommands {
             Ok(conn) => conn,
             Err(_) => {
                 error!("Database connection lock poisoned.");
-                return Err(ErrorType::DatabaseLockPoisoned);
+                return Err(ErrorTypePlayerHandler::DatabaseLockPoisoned);
             }
         };
         
@@ -36,12 +37,9 @@ impl PlayerHandlerDatabaseCommands {
             (),
             |row| row.get(0),
         )
-        .map_err(|e| {
-            error!("Failed to execute query to count player records: [{:?}]", e);
-            ErrorType::DBQueryFailedPlayerCount
-        })?;
+        .map_err(|e| ErrorTypePlayerHandler::DBQueryFailed(format!("Player Count failed, Error: [{}]", e)))?;
 
-        info!("Party Players Count: [{:?}]", party_player_count_query);
+        info!("DB Players Count: [{:?}]", party_player_count_query);
 
         Ok(party_player_count_query)
     }
@@ -49,7 +47,7 @@ impl PlayerHandlerDatabaseCommands {
     pub fn action_table_player_init(
         &self,
         db: &Res<DatabaseConnection>,
-    ) -> Result<(), ErrorType> {
+    ) -> Result<(), ErrorTypePlayerHandler> {
         info!("Init: action_table_player_init:");
         
         // Get and Lock the mutex to access the database connection
@@ -59,7 +57,7 @@ impl PlayerHandlerDatabaseCommands {
             Ok(conn) => conn,
             Err(_) => {
                 error!("Database connection lock poisoned.");
-                return Err(ErrorType::DatabaseLockPoisoned);
+                return Err(ErrorTypePlayerHandler::DatabaseLockPoisoned);
             }
         };
         
@@ -72,7 +70,7 @@ impl PlayerHandlerDatabaseCommands {
             )",
             (),
         )
-        .map_err(|_| ErrorType::DBActionFailedPlayerTableCreation)?; // Map any error to ErrorType and propagate it
+        .map_err(|e| ErrorTypePlayerHandler::DBActionFailed(format!("Player Table Creation Failed [{}]", e)))?; // Map any error to ErrorTypePlayerHandler and propagate it
 
         Ok(()) // Return success if the table is created without errors
     }
@@ -80,11 +78,11 @@ impl PlayerHandlerDatabaseCommands {
     pub fn action_insert_player_record(
         &self,
         db: &Res<DatabaseConnection>,
-        main_player_uuid: String, 
-        main_player_email: Option<String>, 
-        main_player_username: Option<String>,
+        main_player_uuid: &String, 
+        main_player_email: Option<&String>, 
+        main_player_username: Option<&String>,
         player_type: PlayerType,
-    ) -> Result<(), ErrorType> {
+    ) -> Result<(), ErrorTypePlayerHandler> {
         info!("Init: action_insert_player_record: Player [{}]", &main_player_uuid);
         info!("UserName: [{:?}], Email: [{:?}], Player Type: [{:?}]", &main_player_username, &main_player_email, &player_type);
         
@@ -95,7 +93,7 @@ impl PlayerHandlerDatabaseCommands {
             Ok(conn) => conn,
             Err(_) => {
                 error!("Database connection lock poisoned.");
-                return Err(ErrorType::DatabaseLockPoisoned);
+                return Err(ErrorTypePlayerHandler::DatabaseLockPoisoned);
             }
         };
 
@@ -103,13 +101,13 @@ impl PlayerHandlerDatabaseCommands {
             "INSERT INTO player_table (uuid, email, user_name) VALUES (?1, ?2, ?3)",
             (main_player_uuid, main_player_email, main_player_username),
         )
-            .map_err(|_| match player_type {
-                PlayerType::PlayerAiLocal => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerAiLocal,
-                PlayerType::PlayerAiRemote => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerAiRemote,
-                PlayerType::PlayerLocal => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerLocal,
-                PlayerType::PlayerMain => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerMain,
-                PlayerType::PlayerRemote => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerRemote,
-                PlayerType::PlayerTestRef => ErrorType::DBActionFailedPlayerTableInsertRecordPlayerTestRef,
+            .map_err(|e| match player_type {
+                PlayerType::PlayerAiLocal => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Ai into 'player_table' failed Error: [{}]", e)),
+                PlayerType::PlayerAiRemote => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Remote Player Ai into 'player_table' failed Error: [{}]", e)),
+                PlayerType::PlayerLocal => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Local into 'player_table' failed Error: [{}]", e)),
+                PlayerType::PlayerMain => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Main into 'player_table' failed Error: [{}]", e)),
+                PlayerType::PlayerRemote => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Remote Local into 'player_table' failed Error: [{}]", e)),
+                PlayerType::PlayerTestRef => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Test Reference Local into 'player_table' failed Error: [{}]", e)),
             })?;
 
         Ok(())
@@ -118,7 +116,7 @@ impl PlayerHandlerDatabaseCommands {
     pub fn action_remove_all_player_records(
         &self,
         db: &Res<DatabaseConnection>,
-    ) -> Result<(), ErrorType> {
+    ) -> Result<(), ErrorTypePlayerHandler> {
         info!("Init: action_remove_all_player_records:");
         
         // Get and Lock the mutex to access the database connection
@@ -128,7 +126,7 @@ impl PlayerHandlerDatabaseCommands {
             Ok(conn) => conn,
             Err(_) => {
                 error!("Database connection lock poisoned.");
-                return Err(ErrorType::DatabaseLockPoisoned);
+                return Err(ErrorTypePlayerHandler::DatabaseLockPoisoned);
             }
         };
 
@@ -136,7 +134,7 @@ impl PlayerHandlerDatabaseCommands {
             "DELETE FROM player_table",
             (),
         )
-        .map_err(|_| ErrorType::DBDeleteFailedPlayerTableDropAllRecords)?;
+        .map_err(|e| ErrorTypePlayerHandler::DBActionFailed(format!("action_remove_all_player_records failed Error: [{}]", e)))?;
 
         Ok(())
     }
@@ -145,7 +143,7 @@ impl PlayerHandlerDatabaseCommands {
         &self,
         db: &Res<DatabaseConnection>,
         player_uuid: &Uuid,
-    ) -> Result<(), ErrorType> {
+    ) -> Result<(), ErrorTypePlayerHandler> {
         info!("Init: action_remove_all_player_records:");
         
         // Get and Lock the mutex to access the database connection
@@ -155,7 +153,7 @@ impl PlayerHandlerDatabaseCommands {
             Ok(conn) => conn,
             Err(_) => {
                 error!("Database connection lock poisoned.");
-                return Err(ErrorType::DatabaseLockPoisoned);
+                return Err(ErrorTypePlayerHandler::DatabaseLockPoisoned);
             }
         };
 
@@ -169,52 +167,8 @@ impl PlayerHandlerDatabaseCommands {
             delete_call_sqlite,
             (),
         )
-        .map_err(|_| ErrorType::DBDeleteFailedPlayerRecordFromPlayerTable)?;
+        .map_err(|e| ErrorTypePlayerHandler::DBActionFailed(format!("action_remove_player_record failed Error: [{}]", e)))?;
 
         Ok(())
-    }
-
-    pub fn action_query_main_player(
-        &self,
-        db: &Res<DatabaseConnection>,
-    ) -> Result<DBPlayer, ErrorType> {    
-        // Get and Lock the mutex to access the database connection
-        let conn = db.get_connection();
-        let conn = conn.lock();
-        let conn = match conn {
-            Ok(conn) => conn,
-            Err(_) => {
-                error!("Database connection lock poisoned.");
-                return Err(ErrorType::DatabaseLockPoisoned);
-            }
-        };
-
-        let mut stmt = conn
-            .prepare("SELECT uuid, email, user_name FROM player_table")
-            .map_err(|_| ErrorType::DBQueryFailedExistingPlayers)?; 
-        
-        let player_iter = stmt
-            .query_map([], |row| {
-                Ok(DBPlayer {
-                    uuid: row.get(0)?,
-                    email: row.get(1)?,
-                    user_name: row.get(2)?,
-                })
-            })
-            .map_err(|_| ErrorType::DBQueryMappingFailedExistingPlayers)?;
-        
-        let mut main_player_container: Vec<DBPlayer> = Vec::new(); 
-        let mut idx: usize = 0; 
-        for player in player_iter {
-            if idx == 1 { // idx of 1 bypasses the test ref player created and returns the main.
-                main_player_container.push(player.unwrap());
-            }
-            idx += 1;
-        }
-        if let Some(main_player) = main_player_container.pop() {
-            Ok(main_player)
-        } else {
-            Err(ErrorType::DBQueryFailedPlayerTablePlayerMain)
-        }
     }
 }

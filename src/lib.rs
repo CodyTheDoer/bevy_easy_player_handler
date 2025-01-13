@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use bevy_easy_shared_definitions::DatabaseConnection;
+use bevy_easy_shared_definitions::{
+    DatabaseConnection, 
+    ErrorTypePlayerHandler,
+};
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -55,7 +58,7 @@ impl BevyEasyPlayerHandlerPlugin {
         self
     }
 
-    pub fn default(mut self) -> Self {
+    pub fn build(mut self) -> BevyEasyPlayerHandlerPlugin {
         if self.main_player_uuid.is_none() {
             self.main_player_uuid = Some(Uuid::now_v7());
         }
@@ -75,11 +78,7 @@ impl BevyEasyPlayerHandlerPlugin {
             None => 0,
         };
         self.target_idx = Some(target_idx); 
-        
-        self
-    }
 
-    pub fn build(self) -> BevyEasyPlayerHandlerPlugin {
         Self {
             main_player_email: self.main_player_email,
             main_player_user_name: self.main_player_user_name,
@@ -89,12 +88,24 @@ impl BevyEasyPlayerHandlerPlugin {
         }
     }
 
-    pub fn get_party_size_limit(&self) -> i32 {
-        self.party_size.unwrap()
+    pub fn get_main_player_email(&self) -> Result<Option<&String>, ErrorTypePlayerHandler> {
+        Ok(self.main_player_email.as_ref())
     }
 
-    pub fn get_target_idx(&self) -> Option<i32> {
-        self.target_idx
+    pub fn get_main_player_user_name(&self) -> Result<Option<&String>, ErrorTypePlayerHandler> {
+        Ok(self.main_player_user_name.as_ref())
+    }
+
+    pub fn get_main_player_uuid(&self) -> Result<Option<&Uuid>, ErrorTypePlayerHandler> {
+        Ok(self.main_player_uuid.as_ref())
+    }
+
+    pub fn get_party_size_limit(&self) -> Result<Option<&i32>, ErrorTypePlayerHandler> {
+        Ok(self.party_size.as_ref())
+    }
+
+    pub fn get_target_idx(&self) -> Result<Option<&i32>, ErrorTypePlayerHandler> {
+        Ok(self.target_idx.as_ref())
     }
 
     pub fn set_party_size_limit(&mut self, party_size: i32) {
@@ -115,7 +126,7 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
 
         // Insert the plugin itself as a resource
         app.insert_resource(self.clone());
-        app.insert_resource(PlayerHandlerDatabaseCommands::get());
+        app.insert_resource(PlayerHandlerInterface::get());
 
         let party = Party::new(
             self.main_player_email.as_ref().unwrap(), 
@@ -125,44 +136,18 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
         app.insert_resource(party);
 
         // Add the startup protocol system
-        app.add_systems(Startup, PlayerHandlerDatabaseCommands::start_up_protocol);
+        app.add_systems(Startup, PlayerHandlerInterface::start_up_protocol);
     }
 }
 
 #[derive(Resource)]
-pub struct PlayerHandlerDatabaseCommands {}
+pub struct PlayerHandlerInterface {}
 
 #[derive(Clone, Debug)]
 pub struct DBPlayer {
     uuid: String,
     email: String,
     user_name: String,
-}
-
-#[derive(Debug)]
-pub enum ErrorType {
-    AddPlayerFromDbToPartyFailedPlayerAlreadyInParty,
-    AddPlayerFromDbToPartyFailedPlayerTestReference,
-    DatabaseLockPoisoned,
-    DBActionFailedPlayerCreation,
-    DBActionFailedPlayerTableCreation,
-    DBDeleteFailedPlayerTableDropAllRecords,
-    DBActionFailedPlayerTableInsertRecordPlayerAiLocal,
-    DBActionFailedPlayerTableInsertRecordPlayerAiRemote,
-    DBActionFailedPlayerTableInsertRecordPlayerLocal,
-    DBActionFailedPlayerTableInsertRecordPlayerMain,
-    DBActionFailedPlayerTableInsertRecordPlayerRemote,
-    DBActionFailedPlayerTableInsertRecordPlayerTestRef,
-    DBDeleteFailedPlayerRecordFromPlayerTable,
-    DBQueryFailedExistingPlayers,
-    DBQueryFailedPlayerCount,
-    DBQueryFailedPlayerTablePlayerMain,
-    DBQueryFailedVerifyPlayerTableExists,
-    DBQueryMappingFailedExistingPlayers,
-    MatchTargetUuidToExistingPlayerInDatabaseNoPlayerAddedToPartyFailed,
-    PartySizeAtSetLimit,
-    PartySizeGreaterThanSetLimit,
-    UuidParsingFailed,
 }
 
 #[derive(Resource)]
@@ -173,15 +158,16 @@ pub struct Party {
     pub players: Arc<Mutex<Vec<Arc<Mutex<dyn Player + Send>>>>>,
 }
 
-pub trait Player {
+pub trait Player { //  ->  
     fn new(player_email: Option<String>, player_user_name: Option<String>, player_type: PlayerType) -> Self where Self: Sized;
-    fn get_player_email(&self) -> &Option<String>;
-    fn get_player_id(&self) -> &Uuid;
-    fn get_player_type(&self) -> &PlayerType;
-    fn get_player_user_name(&self) -> &String;
-    fn set_player_email(&mut self, new_email: &str);
-    fn set_player_id(&mut self, new_id: Uuid);
-    fn set_player_user_name(&mut self, new_user_name: &str);
+    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler>;
+    fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler>;
+    fn get_player_id(&self) -> Result<&Uuid, ErrorTypePlayerHandler>;
+    fn get_player_type(&self) -> Result<&PlayerType, ErrorTypePlayerHandler>;
+    fn get_player_user_name(&self) -> Result<&String, ErrorTypePlayerHandler>;
+    fn set_player_email(&mut self, new_email: &str) -> Result<(), ErrorTypePlayerHandler>;
+    fn set_player_id(&mut self, new_id: Uuid) -> Result<(), ErrorTypePlayerHandler>;
+    fn set_player_user_name(&mut self, new_user_name: &str) -> Result<(), ErrorTypePlayerHandler>;
 }
 
 #[derive(Clone, Debug, PartialEq)]
