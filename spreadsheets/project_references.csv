@@ -14,6 +14,7 @@ File,Item Type,Name
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInteface::pipeline_db_and_party_add_player_from_db_to_party
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInteface::pipeline_db_and_party_init_test_ref_and_main_player
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInteface::pipeline_db_and_party_sync_main_player_uuids
+.\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::pipeline_db_and_party_action_remove_player
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::pipeline_db_and_party_add_new_synced_player_ai_local
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::pipeline_db_and_party_add_new_synced_player_local
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::pipeline_db_and_party_add_player_from_db_to_party

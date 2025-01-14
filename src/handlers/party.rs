@@ -50,9 +50,10 @@ impl Party {
     }
 
     pub fn active_player_get_player_id(&self) -> Result<Uuid, ErrorTypePlayerHandler> {
-        let active_player_index = self.active_player; // Get the active player index
+        let active_player_index = self.active_player_get_index()?;
+        let adj_active_player_index = active_player_index - 1;
         let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[active_player_index as usize - 1]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
+        let player_arc = &players[adj_active_player_index as usize]; 
         let player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
         let player_id = player.get_player_id()?.to_owned();
         Ok(player_id)
@@ -61,7 +62,7 @@ impl Party {
     pub fn active_player_get_player_type(&self) -> Result<PlayerType, ErrorTypePlayerHandler> {
         let active_player_index = self.active_player; // Get the active player index
         let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[active_player_index as usize - 1]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
+        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
         let player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
         let player_type = player.get_player_type()?.to_owned();
         Ok(player_type)
@@ -75,7 +76,7 @@ impl Party {
     pub fn active_player_set_email(&mut self, player_email: &str) -> Result<(), ErrorTypePlayerHandler> {
         let active_player_index = self.active_player; // Get the active player index
         let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[active_player_index as usize - 1]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
+        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
         let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;// Lock the player mutex to get a mutable reference to the player
         player.set_player_email(player_email)?;
         Ok(())
@@ -84,7 +85,7 @@ impl Party {
     pub fn active_player_set_username(&mut self, player_username: &str) -> Result<(), ErrorTypePlayerHandler> {
         let active_player_index = self.active_player; // Get the active player index
         let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[active_player_index as usize - 1]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
+        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
         let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
         player.set_player_user_name(player_username)?;
         Ok(())
@@ -93,7 +94,7 @@ impl Party {
     pub fn active_player_set_uuid(&mut self, player_id: Uuid) -> Result<(), ErrorTypePlayerHandler> {
         let active_player_index = self.active_player; // Get the active player index
         let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[active_player_index as usize - 1]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
+        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
         let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
         player.set_player_id(player_id)?;
         Ok(())
@@ -223,7 +224,7 @@ impl Party {
     pub fn main_player_clone_player_id(&self) -> Result<Uuid, ErrorTypePlayerHandler>  {
         let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
         let player_arc = &players[0]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?; // Lock the player mutex to get a mutable reference to the player
+        let player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
         let player_id = player.get_player_id()?;
         Ok(player_id.clone())
     }
@@ -240,7 +241,7 @@ impl Party {
     pub fn player_set_player_id(&mut self, player_idx: usize, new_id: Uuid) -> Result<(), ErrorTypePlayerHandler> {
         let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
         let player_arc = &players[player_idx]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?; // Lock the player mutex to get a mutable reference to the player
+        let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
         player.set_player_id(new_id)?;
 
         Ok(())
@@ -342,18 +343,20 @@ impl Party {
         Ok(())
     }
 
-    pub fn players_remove_player(&mut self, player_id: Uuid, plugin: ResMut<BevyEasyPlayerHandlerPlugin>) -> Result<(), ErrorTypePlayerHandler> {
+    pub fn players_remove_player(&mut self, player_id: &Uuid, plugin: &ResMut<BevyEasyPlayerHandlerPlugin>) -> Result<(), ErrorTypePlayerHandler> {
         let main_player_id = plugin.get_main_player_uuid()?;
         let main_player_id = main_player_id.unwrap();
 
-        if main_player_id == &player_id {
+        if main_player_id == player_id {
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("players_remove_player: Failure to remove [{}] Can't remove local host from party", &player_id)));
         }
 
         let count: usize = self.get_player_count_party()?;
         let count_i32 = count as i32;
         let player_idx = self.active_player_get_index()?;
-        if player_idx == count_i32 - 1 {
+
+        // Adjust index in preperation for the resulting indexing overflow limit.
+        if player_idx == count_i32 {
             self.active_player_set(player_idx - 1)?;
         }
 
@@ -364,7 +367,7 @@ impl Party {
             players.retain(|player| {
                 let target = player.lock().unwrap();
                 let target_id = target.get_player_id().unwrap(); 
-                target_id != &player_id
+                target_id != player_id
             });
         };
 

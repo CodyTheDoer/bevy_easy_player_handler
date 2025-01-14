@@ -6,7 +6,6 @@ use bevy_easy_shared_definitions::{
 };
 
 use rusqlite::Result;
-use uuid::Uuid;
 
 use crate::{
     PlayerHandlerInterface, 
@@ -108,8 +107,7 @@ impl PlayerHandlerInterface {
                 PlayerType::PlayerMain => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Main into 'player_table' failed Error: [{}]", e)),
                 PlayerType::PlayerRemote => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Remote Local into 'player_table' failed Error: [{}]", e)),
                 PlayerType::PlayerTestRef => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Test Reference Local into 'player_table' failed Error: [{}]", e)),
-            })?;
-
+            })?;        
         Ok(())
     }
 
@@ -135,39 +133,6 @@ impl PlayerHandlerInterface {
             (),
         )
         .map_err(|e| ErrorTypePlayerHandler::DBActionFailed(format!("action_remove_all_player_records failed Error: [{}]", e)))?;
-
-        Ok(())
-    }
-
-    pub fn action_remove_player_record(
-        &self,
-        db: &Res<DatabaseConnection>,
-        player_uuid: &Uuid,
-    ) -> Result<(), ErrorTypePlayerHandler> {
-        info!("Init: action_remove_all_player_records:");
-        
-        // Get and Lock the mutex to access the database connection
-        let conn = db.get_connection();
-        let conn = conn.lock();
-        let conn = match conn {
-            Ok(conn) => conn,
-            Err(_) => {
-                error!("Database connection lock poisoned.");
-                return Err(ErrorTypePlayerHandler::DatabaseLockPoisoned);
-            }
-        };
-
-        let player_uuid = player_uuid.to_owned();
-        let player_uuid_string = String::from(player_uuid);
-        let player_uuid_str = player_uuid_string.as_str();
-        // setup and execute deletion of single player record from DB
-        let delete_call = format!("DELETE FROM player_table WHERE uuid LIKE %{}%", player_uuid_str);
-        let delete_call_sqlite = delete_call.as_str();
-        conn.execute(
-            delete_call_sqlite,
-            (),
-        )
-        .map_err(|e| ErrorTypePlayerHandler::DBActionFailed(format!("action_remove_player_record failed Error: [{}]", e)))?;
 
         Ok(())
     }

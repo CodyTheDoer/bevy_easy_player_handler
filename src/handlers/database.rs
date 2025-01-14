@@ -17,95 +17,45 @@ impl PlayerHandlerInterface {
     }
 
     pub fn start_up_protocol(
+        // mut commands: Commands,
         db: Res<DatabaseConnection>,
-        dbi: Res<PlayerHandlerInterface>,
-        plugin: ResMut<BevyEasyPlayerHandlerPlugin>,
+        phi: ResMut<PlayerHandlerInterface>,
+        mut plugin: ResMut<BevyEasyPlayerHandlerPlugin>,
         mut party: ResMut<Party>,
     ) {
         info!("BevyEasyPlayerHandler: [ Start Up Protocol ]");
     
-        // ----- [ Vertify database table "player_table" exists ] ----- //
-    
-        let player_table_exists = dbi.query_table_player_exists(&db).unwrap();
-    
-        // let player_table_exists = match dbi.query_table_player_exists(&db) {
-        //     Ok(exists) => {
-        //         exists
-        //     },
-        //     Err(e) => {
-        //         warn!("Error: start_up_protocol -> query_table_player_exists: {:?}", e);
-        //         false // Assume the table does not exist on unexpected errors
-        //     }
-        // };
+        let player_table_exists = phi.query_table_player_exists(&db).unwrap();
     
         info!("Result [query_table_player_exists]: [{}]", player_table_exists);
     
         if !player_table_exists {
-            dbi.action_table_player_init(&db).unwrap();
-            // match dbi.action_table_player_init(&db) {
-            //     Ok(_) => info!("Table: 'player_table' created successfully!"),
-            //     Err(ErrorTypePlayerHandler::DBActionFailedPlayerTableCreation) => warn!("Error: Failed to create 'player_table'..."),
-            //     Err(e) => warn!("Error: start_up_protocol -> action_table_player_init: {:?}", e)
-            // };
+            phi.action_table_player_init(&db).unwrap();
         }
     
         // ----- [ Vertify database test ref and main player exists ] ----- //
     
-        let players_test_ref_and_owner_exists = dbi.query_test_ref_and_main_player_exists(&db).unwrap();
-        //  {
-        //     Ok(does_exist) => {
-        //         does_exist
-        //     },
-        //     Err(e) => {
-        //         warn!("Error: start_up_protocol -> query_test_ref_and_main_player_exists: {:?}", e);
-        //         false // Assume the test ref and main players do not exist on unexpected errors
-        //     }
-        // };
-    
-        // let players_test_ref_and_owner_exists = match dbi.query_test_ref_and_main_player_exists(&db) {
-        //     Ok(does_exist) => {
-        //         does_exist
-        //     },
-        //     Err(e) => {
-        //         warn!("Error: start_up_protocol -> query_test_ref_and_main_player_exists: {:?}", e);
-        //         false // Assume the test ref and main players do not exist on unexpected errors
-        //     }
-        // };
-    
+        let players_test_ref_and_owner_exists = phi.query_test_ref_and_main_player_exists(&db).unwrap();
+        
         info!("Result [query_test_ref_and_main_player_exists]: [{}]", players_test_ref_and_owner_exists);
     
         if !players_test_ref_and_owner_exists {
-            dbi.pipeline_db_and_party_init_test_ref_and_main_player(&db, &plugin, &mut party).unwrap();
-            // match dbi.pipeline_db_and_party_init_test_ref_and_main_player(&db, &plugin, &mut party) {
-            //     Ok(_) => info!("Database: Records [ test_ref ] & [ main_player ] created successfully!"),
-            //     Err(ErrorTypePlayerHandler::DBActionFailedPlayerCreation) => warn!("Error: Failed to create 'player'..."),
-            //     Err(e) => warn!("Error: start_up_protocol -> init_test_ref_and_main_player: {:?}", e)
-            // }
+            phi.pipeline_db_and_party_init_test_ref_and_main_player(&db, &plugin, &mut party).unwrap();
         }
     
         // ----- [ Sync party and database main players uuid ] ----- //
     
-        let party_and_database_main_player_synced = dbi.query_party_and_db_main_player_synced(&db, &mut party).unwrap();
-    
-        // let party_and_database_main_player_synced = match dbi.query_party_and_db_main_player_synced(&db, &mut party) {
-        //     Ok(synced) => {
-        //         synced
-        //     },
-        //     Err(e) => {
-        //         warn!("Error: start_up_protocol -> query_party_and_db_main_player_synced: {:?}", e);
-        //         false // Assume the table does exist on unexpected errors
-        //     }
-        // };
+        let party_and_database_main_player_synced = phi.query_party_and_db_main_player_synced(&db, &mut party).unwrap();
         
         info!("Result [query_party_and_db_main_player_synced]: [{}]", party_and_database_main_player_synced);
     
         if !party_and_database_main_player_synced {
-            dbi.pipeline_db_and_party_sync_main_player_uuids(&db, &mut party).unwrap();
-            // match dbi.pipeline_db_and_party_sync_main_player_uuids(&db, &mut party) {
-            //     Ok(_) => info!("Party: Database and Party [ main_player ] synced successfully!"),
-            //     Err(ErrorTypePlayerHandler::DBQueryFailedPlayerTablePlayerMain) => warn!("Error: Failed to query main player..."),
-            //     Err(e) => warn!("Error: start_up_protocol -> pipeline_db_and_party_sync_main_player_uuids: {:?}", e)
-            // }
+            match phi.pipeline_db_and_party_sync_main_player_uuids(&db, &mut party, &mut plugin){
+                Ok(sync) => sync,
+                Err(e) => {
+                    warn!("startup_protocol -> pipeline_db_and_party_sync_main_player_uuids [ Failed ] Error: {:?}", e);
+                }, 
+            };
         }
     }
 

@@ -19,7 +19,6 @@ pub struct BevyEasyPlayerHandlerPlugin {
     main_player_user_name: Option<String>,
     main_player_uuid: Option<Uuid>,
     party_size: Option<i32>,
-    target_idx: Option<i32>,
 }
 
 impl BevyEasyPlayerHandlerPlugin {
@@ -29,7 +28,6 @@ impl BevyEasyPlayerHandlerPlugin {
             main_player_user_name: None,
             main_player_uuid: None,
             party_size: None,
-            target_idx: None,
         }
     }
 
@@ -53,11 +51,6 @@ impl BevyEasyPlayerHandlerPlugin {
         self
     }
 
-    pub fn target_idx(mut self, target_idx: i32) -> Self {
-        self.target_idx = Some(target_idx);
-        self
-    }
-
     pub fn build(mut self) -> BevyEasyPlayerHandlerPlugin {
         if self.main_player_uuid.is_none() {
             self.main_player_uuid = Some(Uuid::now_v7());
@@ -73,18 +66,11 @@ impl BevyEasyPlayerHandlerPlugin {
         };
         self.party_size = Some(party_size);
 
-        let target_idx = match self.target_idx {
-            Some(i32) => i32,
-            None => 0,
-        };
-        self.target_idx = Some(target_idx); 
-
         Self {
             main_player_email: self.main_player_email,
             main_player_user_name: self.main_player_user_name,
             main_player_uuid: self.main_player_uuid,
             party_size: self.party_size,
-            target_idx: self.target_idx,
         }
     }
 
@@ -104,16 +90,15 @@ impl BevyEasyPlayerHandlerPlugin {
         Ok(self.party_size.as_ref())
     }
 
-    pub fn get_target_idx(&self) -> Result<Option<&i32>, ErrorTypePlayerHandler> {
-        Ok(self.target_idx.as_ref())
-    }
-
-    pub fn set_party_size_limit(&mut self, party_size: i32) {
+    pub fn set_party_size_limit(&mut self, party_size: i32) -> Result<(), ErrorTypePlayerHandler> {
         self.party_size = Some(party_size);
+        Ok(())
     }
 
-    pub fn set_target_idx(&mut self, target_idx: i32) {
-        self.target_idx = Some(target_idx);
+    pub fn set_main_player_uuid(&mut self, new_uuid: &Uuid) -> Result<(), ErrorTypePlayerHandler> {
+        let owned_id = new_uuid.to_owned();
+        self.main_player_uuid = Some(owned_id);
+        Ok(())
     }
 }
 
@@ -170,6 +155,11 @@ pub trait Player { //  ->
     fn set_player_user_name(&mut self, new_user_name: &str) -> Result<(), ErrorTypePlayerHandler>;
 }
 
+#[derive(Component)]
+pub struct PlayerComponent {
+    player: Arc<Mutex<dyn Player + Send>>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum PlayerType {
     PlayerAiLocal,
@@ -180,7 +170,7 @@ pub enum PlayerType {
     PlayerTestRef,
 }
 
-#[derive(Clone, Resource)]
+#[derive(Clone, Component, Resource)]
 pub struct PlayerAi {
     player_email: Option<String>,
     player_id: Uuid,
@@ -188,7 +178,7 @@ pub struct PlayerAi {
     player_user_name: Option<String>,
 }
 
-#[derive(Clone, Resource)]
+#[derive(Clone, Component, Resource)]
 pub struct PlayerLocal {
     player_email: Option<String>,
     player_id: Uuid,
@@ -196,7 +186,7 @@ pub struct PlayerLocal {
     player_user_name: Option<String>,
 }
 
-#[derive(Clone, Resource)]
+#[derive(Clone, Component, Resource)]
 pub struct PlayerRemote {
     player_email: Option<String>,
     player_id: Uuid,
