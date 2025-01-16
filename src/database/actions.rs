@@ -6,6 +6,7 @@ use bevy_easy_shared_definitions::{
 };
 
 use rusqlite::Result;
+use uuid::Uuid;
 
 use crate::{
     PlayerHandlerInterface, 
@@ -65,7 +66,7 @@ impl PlayerHandlerInterface {
             "CREATE TABLE player_table (
                 uuid TEXT PRIMARY KEY,
                 email BLOB,
-                user_name BLOB
+                username BLOB
             )",
             (),
         )
@@ -77,7 +78,7 @@ impl PlayerHandlerInterface {
     pub fn action_insert_player_record(
         &self,
         db: &Res<DatabaseConnection>,
-        main_player_uuid: &String, 
+        main_player_uuid: &Uuid, 
         main_player_email: Option<&String>, 
         main_player_username: Option<&String>,
         player_type: PlayerType,
@@ -96,9 +97,11 @@ impl PlayerHandlerInterface {
             }
         };
 
+        let insert_target = String::from(*main_player_uuid);
+
         conn.execute(
-            "INSERT INTO player_table (uuid, email, user_name) VALUES (?1, ?2, ?3)",
-            (main_player_uuid, main_player_email, main_player_username),
+            "INSERT INTO player_table (uuid, email, username) VALUES (?1, ?2, ?3)",
+            (insert_target, main_player_email, main_player_username),
         )
             .map_err(|e| match player_type {
                 PlayerType::PlayerAiLocal => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Ai into 'player_table' failed Error: [{}]", e)),

@@ -2,400 +2,705 @@ use bevy::prelude::*;
 
 use bevy_easy_shared_definitions::ErrorTypePlayerHandler;
 
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::collections::HashMap;
+// use std::sync::Arc;
+// use std::sync::Mutex;
+// use std::sync::MutexGuard;
 
 use uuid::Uuid;
 
-use crate::BevyEasyPlayerHandlerPlugin;
 use crate::{
+    // BevyEasyPlayerHandlerPlugin,
     Party,
-    Player,
-    PlayerLocal,
+    // Player,
+    PlayerComponent,
     PlayerType,
 };
 
+macro_rules! player_query_get_player_lock {
+    ($player_query:expr, $target_uuid:expr) => {{
+        println!("MACRO: player_query_get_player_lock:");
+        println!("MACRO Step: 1 [ player_query_get_player_lock ]");
+        let mut player_match: Option<&PlayerComponent> = None;
+        println!("MACRO Step: 2 [ player_query_get_player_lock ]");
+        for player in $player_query.iter() {
+            println!("MACRO Step: 3 [ player_query_get_player_lock ]");
+            let player_lock = match player.player.lock() {
+                Ok(player) => player,
+                Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+            };
+            println!("MACRO Step: 4 [ player_query_get_player_lock ]");
+            let player_id = player_lock.get_player_id().unwrap();
+            println!("player_id: [ {} ]", &player_id);
+            println!("MACRO Step: 5 [ player_query_get_player_lock ]");
+            if $target_uuid == player_id {
+                println!("MACRO Step: 6 [ player_query_get_player_lock ]");
+                player_match = Some(player);
+            }
+        }
+        println!("MACRO Step: 7 [ player_query_get_player_lock ]");
+        player_match
+
+    }};
+}
+
+
+//         println!("MACRO Step: 1 [ player_query_get_player_lock ]");
+//         let mut player_match: Vec<&PlayerComponent> = 
+//             $player_query
+//                 .iter().filter(
+//                     |player|{
+//                         println!("MACRO Step: 2 [ player_query_get_player_lock ]");
+//                         // let player_lock = player.to_owned().player.lock().unwrap();
+//                         let player_lock = *player.player.lock().unwrap();
+//                         println!("MACRO Step: 3 [ player_query_get_player_lock ]");
+//                         let player_id = player_lock.get_player_id().unwrap();
+//                         println!("MACRO Step: 4 [ player_query_get_player_lock ]");
+//                         return $target_uuid == player_id;
+//                     }
+//                 )
+//                 .map(|player|player).collect();
+//         println!("MACRO Step: 5 [ player_query_get_player_lock ]");
+//         let player = player_match.remove(0);
+//         println!("MACRO Step: 6 [ player_query_get_player_lock ]");
+//         let player_lock = player.player.lock().unwrap();
+//         println!("MACRO Step: 7 [ player_query_get_player_lock ]");
+//         player_lock
+//     }};
+// }
+
 impl Party {
-    pub fn new(main_player_email: &String, main_player_user_name: &String, party_size: i32) -> Self {
-        let active_player: i32 = 1;
-        let ai_vec: Option<Vec<usize>> = None;
-        let party_size: i32 = party_size;
-        let players: Arc<Mutex<Vec<Arc<Mutex<dyn Player + Send>>>>> = Arc::new(Mutex::new(vec![Arc::new(Mutex::new(PlayerLocal::new(Some(main_player_email.to_owned()), Some(main_player_user_name.to_owned()), PlayerType::PlayerLocal)))]));
+    pub fn new() -> Self {
+        let active_player: usize = 1;
+        let player_map: HashMap<usize, Uuid> = HashMap::new();
         Party {
             active_player,
-            ai_vec,
-            party_size,
-            players,
+            player_map,
         } 
     }
 
-    pub fn active_player_get_clone(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        
-        let index = self.active_player as usize;
-        if index == 0 || index > players.len() {
-            return Err(ErrorTypePlayerHandler::IndexOutOfBounds(format!(
-                "active_player={} is out of bounds (len={})",
-                self.active_player,
-                players.len()
-            )));
-        }
-
-        Ok(players[index - 1].clone())
+    pub fn clone_player_map(
+        &self
+    ) -> Result<HashMap<usize, Uuid>, ErrorTypePlayerHandler> {
+        let result = self.player_map.clone(); //
+        Ok(result)
     }
 
-    pub fn active_player_get_index(&self) -> Result<i32, ErrorTypePlayerHandler> {
+    pub fn get_player_map_active_player_uuid(
+        &self
+    ) -> Result<&Uuid, ErrorTypePlayerHandler> {
+        println!("Init: get_player_map_active_player_uuid:");
+        println!("Step: 1 [ get_player_map_active_player_uuid ]");
+        let result = self.player_map.get(&self.active_player); //
+        println!("Step: 2 [ get_player_map_active_player_uuid ]");
+        if result.is_none() {
+            println!("Error: 1 [ get_player_map_active_player_uuid ] -> result.is_none()");
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_get_uuid")))
+        }
+        println!("Step: 3 [ get_player_map_active_player_uuid ]");
+        Ok(result.unwrap())
+    }
+
+    pub fn clone_player(
+        &self,
+        target_uuid: &Uuid,
+        player_query: &Query<&PlayerComponent>,
+    ) -> Result<PlayerComponent, ErrorTypePlayerHandler> {
+        let mut player_match: Vec<&PlayerComponent> = 
+            player_query
+                .iter().filter(
+                    |player|{
+                        let player_mutex = player.to_owned().player.lock().unwrap();
+                        let player_id = player_mutex.get_player_id().unwrap().clone();
+                        drop(player_mutex);
+                        return target_uuid == &player_id;
+                    }
+                )
+                .collect();
+            
+        let player = player_match.remove(0);
+        drop(player_match);
+        let player_component: PlayerComponent = PlayerComponent{ player: player.player.clone() };
+        Ok(player_component)
+    }
+
+    pub fn get_active_player_index(&self) -> Result<usize, ErrorTypePlayerHandler> {
         let active_player = self.active_player;
         Ok(active_player)
     }
 
-    pub fn active_player_get_player_id(&self) -> Result<Uuid, ErrorTypePlayerHandler> {
-        let active_player_index = self.active_player_get_index()?;
-        let adj_active_player_index = active_player_index - 1;
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[adj_active_player_index as usize]; 
-        let player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-        let player_id = player.get_player_id()?.to_owned();
-        Ok(player_id)
-    }
-
-    pub fn active_player_get_player_type(&self) -> Result<PlayerType, ErrorTypePlayerHandler> {
-        let active_player_index = self.active_player; // Get the active player index
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-        let player_type = player.get_player_type()?.to_owned();
-        Ok(player_type)
-    }
-
-    pub fn active_player_set(&mut self, target: i32) -> Result<(), ErrorTypePlayerHandler> {
+    pub fn set_active_player_index(&mut self, target: usize) -> Result<(), ErrorTypePlayerHandler> {
         self.active_player = target;
         Ok(())
     }
 
-    pub fn active_player_set_email(&mut self, player_email: &str) -> Result<(), ErrorTypePlayerHandler> {
-        let active_player_index = self.active_player; // Get the active player index
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;// Lock the player mutex to get a mutable reference to the player
-        player.set_player_email(player_email)?;
+    pub fn clone_active_player_player_type(
+        &self,
+        player_query: &Query<&PlayerComponent>,
+    ) -> Result<PlayerType, ErrorTypePlayerHandler> {
+        let target_uuid = self.get_player_map_active_player_uuid()?;
+        let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        if player_component.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
+        }
+        let player_component = player_component.unwrap();
+        let player_mutex = match player_component.player.lock(){
+            Ok(player) => player,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        let player_type = player_mutex.get_player_type()?.clone();
+        drop(player_mutex);
+        Ok(player_type.to_owned())
+    }
+
+    pub fn clone_active_player_player_email(
+        &self,
+        player_query: &Query<&PlayerComponent>,
+    ) -> Result<String, ErrorTypePlayerHandler> {
+        let target_uuid = self.get_player_map_active_player_uuid()?;
+        let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        if player_component.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
+        }
+        let player_component = player_component.unwrap();
+        let player_mutex = match player_component.player.lock(){
+            Ok(player) => player,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        let player_email = player_mutex.get_player_email()?.clone();
+        drop(player_mutex);
+        Ok(player_email.to_owned())
+    }
+
+    pub fn clone_active_player_uuid(
+        &self,
+        player_query: &Query<&PlayerComponent>,
+    ) -> Result<Uuid, ErrorTypePlayerHandler> {
+        let target_uuid = self.get_player_map_active_player_uuid()?;
+        let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        if player_component.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
+        }
+        let player_component = player_component.unwrap();
+        let player_mutex = match player_component.player.lock(){
+            Ok(player) => player,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        let player_id = player_mutex.get_player_id()?.clone();
+        drop(player_mutex);
+        Ok(player_id)
+    }
+
+    pub fn clone_active_player_player_username(
+        &self, 
+        player_query: &Query<&PlayerComponent>,
+    ) -> Result<String, ErrorTypePlayerHandler> {
+        let target_uuid = self.get_player_map_active_player_uuid()?;
+        let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        if player_component.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
+        }
+        let player_component = player_component.unwrap();
+        let player_mutex = match player_component.player.lock(){
+            Ok(player) => player,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        let player_username = player_mutex.get_player_username()?.to_owned();
+        drop(player_mutex);
+        Ok(player_username.to_owned())
+    }
+
+    pub fn set_active_player_email(
+        &mut self, 
+        player_query: &Query<&PlayerComponent>, 
+        player_email: &str,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        let target_uuid = self.get_player_map_active_player_uuid()?;
+        let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        if player_component.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
+        }
+        let player_component = player_component.unwrap();
+        let mut player_mutex = match player_component.player.lock(){
+            Ok(player) => player,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        player_mutex.set_player_email(player_email)?;
+        drop(player_mutex);
         Ok(())
     }
 
-    pub fn active_player_set_username(&mut self, player_username: &str) -> Result<(), ErrorTypePlayerHandler> {
-        let active_player_index = self.active_player; // Get the active player index
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-        player.set_player_user_name(player_username)?;
+    pub fn set_active_player_username(
+        &mut self, 
+        player_query: &Query<&PlayerComponent>, 
+        player_username: &str,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        let target_uuid = self.get_player_map_active_player_uuid()?;
+        let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        if player_component.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
+        }
+        let player_component = player_component.unwrap();
+        let mut player_mutex = match player_component.player.lock(){
+            Ok(player) => player,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        player_mutex.set_player_username(player_username)?;
+        drop(player_mutex);
         Ok(())
     }
 
-    pub fn active_player_set_uuid(&mut self, player_id: Uuid) -> Result<(), ErrorTypePlayerHandler> {
-        let active_player_index = self.active_player; // Get the active player index
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[(active_player_index - 1) as usize]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-        player.set_player_id(player_id)?;
+    pub fn set_active_player_uuid_player_map_and_component(
+        &mut self, 
+        player_query: &Query<&PlayerComponent>, 
+        new_uuid: Uuid
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: set_active_player_uuid_player_map_and_component:");
+        println!("Step: 1 [ set_active_player_uuid_player_map_and_component ]");
+        let active_player_uuid = *self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ set_active_player_uuid_player_map_and_component ]");
+        if active_player_uuid == new_uuid {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_set_uuid failed: new id matches existing")));
+        }
+        println!("Step: 3 [ set_active_player_uuid_player_map_and_component ]");
+        self.set_active_player_uuid_player_component(player_query, &new_uuid)?;
+        println!("Step: 4 [ set_active_player_uuid_player_map_and_component ]");
+        self.set_active_player_uuid_player_map(&new_uuid)?;
+        println!("Step: 5 [ set_active_player_uuid_player_map_and_component ]");
+        let updated_active_player_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 6 [ set_active_player_uuid_player_map_and_component ]");
+        if active_player_uuid == *updated_active_player_uuid {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_set_uuid failed: id update failed, id matches original")));
+        }
+        println!("Step: 7 [ set_active_player_uuid_player_map_and_component ]");
         Ok(())
     }
 
-    pub fn all_players_get_ids(&self) -> Result<Vec<Uuid>, ErrorTypePlayerHandler> {
+    pub fn init_main_player_uuid_player_map(
+        &mut self, 
+        player_query: &Query<&PlayerComponent>, 
+        new_uuid: Uuid
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: init_main_player_uuid_player_map:");
+        println!("Step: 1 [ init_main_player_uuid_player_map ]");
+        let active_player = match player_query.single().player.lock() {
+            Ok(uuid) => uuid,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        println!("Step: 2 [ init_main_player_uuid_player_map ]");
+        let active_player_uuid = active_player.get_player_id()?.clone();
+        println!("Step: 3 [ init_main_player_uuid_player_map ]");
+        drop(active_player);
+        println!("Step: 4 [ init_main_player_uuid_player_map ]");
+        if &active_player_uuid == &new_uuid {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("init_main_player_uuid_player_map failed: new id matches existing")));
+        }
+        println!("Step: 5 [ init_main_player_uuid_player_map ]");
+        self.set_active_player_uuid_player_component(player_query, &new_uuid)?;
+        println!("Step: 6 [ init_main_player_uuid_player_map ]");
+        self.set_active_player_uuid_player_map(&new_uuid)?;
+        println!("Step: 7 [ init_main_player_uuid_player_map ]");
+        let updated_active_player_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 8 [ init_main_player_uuid_player_map ]");
+        if &active_player_uuid == updated_active_player_uuid {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_set_uuid failed: id update failed, id matches original")));
+        }
+        println!("Step: 9 [ init_main_player_uuid_player_map ]");
+        Ok(())
+    }
+
+    pub fn set_active_player_uuid_player_component(
+        &mut self, 
+        player_query: &Query<&PlayerComponent>, 
+        new_uuid: &Uuid,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: set_active_player_uuid_player_component:");
+        println!("Step: 1 [ set_active_player_uuid_player_component ]");
+        let target_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ set_active_player_uuid_player_component ]");
+        let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        println!("Step: 3 [ set_active_player_uuid_player_component ]");
+        if player_component.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
+        }
+        println!("Step: 4 [ set_active_player_uuid_player_component ]");
+        let player_component = player_component.unwrap();
+        println!("Step: 5 [ set_active_player_uuid_player_component ]");
+        let mut player_mutex = match player_component.player.lock(){
+            Ok(player) => player,
+            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+        };
+        println!("Step: 6 [ set_active_player_uuid_player_component ]");
+        player_mutex.set_player_id(*new_uuid)?;
+        drop(player_mutex);
+        println!("Step: 7 [ set_active_player_uuid_player_component ]");
+        Ok(())
+    }
+
+    pub fn set_active_player_uuid_player_map(
+        &mut self, 
+        new_uuid: &Uuid,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        let target_index = self.active_player;
+        let player_map = &mut self.player_map;
+        player_map.entry(target_index).and_modify(
+            |uuid| 
+            {*uuid = *new_uuid}
+        );
+        Ok(())
+    }
+
+    pub fn clone_main_player_uuid(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<Uuid, ErrorTypePlayerHandler> {
+        println!("Init: clone_main_player_uuid");
+        println!("Step: 1 [ clone_main_player_uuid ]");
+        let mut return_id: Option<Uuid> = None;
+            println!("Step: 2 [ clone_main_player_uuid ]");
+        for player in player_query.iter() {
+            println!("Step: 3 [ clone_main_player_uuid ]");
+            let player_container = &player.player;
+            println!("Step: 4 [ clone_main_player_uuid ]");
+            let player_lock = match player_container.lock() {
+                Ok(uuid) => uuid,
+                Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+            };
+            println!("Step: 5 [ clone_main_player_uuid ]");
+            let player_type = player_lock.get_player_type()?;
+            println!("Step: 6 [ clone_main_player_uuid ]");
+            if player_type == &PlayerType::PlayerMain {
+                println!("Step: 7 [ clone_main_player_uuid ]");
+                let player_uuid = player_lock.get_player_id()?;
+                println!("Step: 8 [ clone_main_player_uuid ]");
+                return_id = Some(*player_uuid);
+            }
+        }
+        println!("Step: 9 [ clone_main_player_uuid ]");
+        if return_id.is_none() {
+            println!("Step: 10 [ clone_main_player_uuid ]");
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_main_player_uuid failed: return_id is None")))
+        }
+        println!("Step: 10 [ clone_main_player_uuid ]");
+        let return_value = return_id.unwrap();
+        println!("Step: 11 [ clone_main_player_uuid ]");
+        Ok(return_value)
+
+        // return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("Could not find PlayerMain in queried PlayerComponents")))
+        // println!("Step: 13 [ clone_main_player_uuid ]");
+    }
+
+    pub fn get_all_players_ids(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<Vec<Uuid>, ErrorTypePlayerHandler> {
         let mut id_storage: Vec<Uuid> = Vec::new();
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let player = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-            let id = player.get_player_id()?;
-            id_storage.push(*id);
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_id = player_mutex.get_player_id()?.clone();
+            drop(player_mutex);
+            id_storage.push(player_id);
         }
         Ok(id_storage)
     }
 
-    pub fn all_players_get_ids_and_types(&self) -> Result<Vec<(Uuid, PlayerType)>, ErrorTypePlayerHandler> {
+    pub fn get_all_players_ids_and_types(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<Vec<(Uuid, PlayerType)>, ErrorTypePlayerHandler> {
+        println!("Init: get_all_players_ids_and_types");
+        println!("Step: 1 [ get_all_players_ids_and_types ]");
         let mut id_type_storage: Vec<(Uuid, PlayerType)> = Vec::new();
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let target_player = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-            let id = target_player.get_player_id()?.to_owned();
-            let player_type = target_player.get_player_type()?.to_owned();
-            let id_type = (id, player_type);
-            id_type_storage.push(id_type);
+        println!("Step: 2 [ get_all_players_ids_and_types ]");
+        for player in player_query.iter() {
+            println!("Step: 3 [ get_all_players_ids_and_types ]");
+            let player_mutex = player.player.lock().unwrap();
+            println!("Step: 4 [ get_all_players_ids_and_types ]");
+            let player_id = player_mutex.get_player_id()?.clone();
+            println!("Step: 5 [ get_all_players_ids_and_types ]");
+            let player_type = player_mutex.get_player_type()?.clone();
+            println!("Step: 6 [ get_all_players_ids_and_types ]");
+            drop(player_mutex);
+            println!("Step: 7 [ get_all_players_ids_and_types ]");
+            id_type_storage.push((player_id, player_type));
         }
-        let id_type_storage = id_type_storage.clone();
+        println!("Step: 8 [ get_all_players_ids_and_types ]");
         Ok(id_type_storage)
     }
 
-    pub fn get_player_count_ai_total(&self) -> Result<usize, ErrorTypePlayerHandler> {
+    pub fn get_player_count_party(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<usize, ErrorTypePlayerHandler> {
+        let count_ai_all = self.get_player_count_ai_total(&player_query)?;
+        let count_local = self.get_player_count_local(&player_query)?;
+        let count_main = self.get_player_count_main(&player_query)?; // should always be 1
+        let count_remote = self.get_player_count_remote(&player_query)?;
+        Ok(count_ai_all + count_local + count_main + count_remote)
+    }
+
+    pub fn get_player_count_main(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<usize, ErrorTypePlayerHandler> {
         let mut count: usize = 0;
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let player_type = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-            let player_ref = player_type.get_player_type()?;
-            if player_ref == &PlayerType::PlayerAiLocal || player_ref == &PlayerType::PlayerAiRemote {
-                count += 1;
-            }
-        }
-        Ok(count)
-    }
-
-    pub fn get_player_count_ai_local(&self) -> Result<usize, ErrorTypePlayerHandler> {
-        let mut count: usize = 0;
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let player_type = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-            let player_ref = player_type.get_player_type()?;
-            if player_ref == &PlayerType::PlayerAiLocal {
-                count += 1;
-            }
-        }
-        Ok(count)
-    }
-
-    pub fn get_player_count_ai_remote(&self) -> Result<usize, ErrorTypePlayerHandler> {
-        let mut count: usize = 0;
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let player_type = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-            let player_ref = player_type.get_player_type()?;
-            if player_ref == &PlayerType::PlayerAiRemote {
-                count += 1;
-            }
-        }
-        Ok(count)
-    }
-
-    pub fn get_player_count_local(&self) -> Result<usize, ErrorTypePlayerHandler> {
-        let mut count: usize = 0;
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let player_type = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-            let player_ref = player_type.get_player_type()?;
-            if player_ref == &PlayerType::PlayerLocal {
-                count += 1;
-            }
-        }
-        Ok(count)
-    }
-
-    pub fn get_player_count_remote(&self) -> Result<usize, ErrorTypePlayerHandler> {
-        let mut count: usize = 0;
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let player_type = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-            let player_ref = player_type.get_player_type()?;
-            if player_ref == &PlayerType::PlayerRemote {
-                count += 1;
-            }
-        }
-        Ok(count)
-    }
-
-    pub fn get_player_count_party(&self) -> Result<usize, ErrorTypePlayerHandler> {
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let count: usize = players.len();
-        Ok(count)
-    }
-
-    pub fn get_party_ai_index_vec(&self) -> Result<Vec<usize>, ErrorTypePlayerHandler>   {
-        let mut ai_index: Vec<usize> = Vec::new();
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for (index, player) in players.iter().enumerate() {
-            let player_type = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-            let player_ref = player_type.get_player_type()?;
-            if player_ref == &PlayerType::PlayerAiLocal || player_ref == &PlayerType::PlayerAiRemote {
-                ai_index.push(index);
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_type = player_mutex.get_player_type()?;
+            match player_type {
+                &PlayerType::PlayerMain => count += 1,
+                _ => {},
             };
+            drop(player_mutex);
+        };
+        Ok(count)
+    }
+
+    pub fn get_player_count_ai_total(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<usize, ErrorTypePlayerHandler> {
+        let count_ai = self.get_player_count_ai_local(&player_query)?;
+        let count_remote = self.get_player_count_ai_remote(&player_query)?;
+        Ok(count_ai + count_remote)
+    }
+
+    pub fn get_player_count_ai_local(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<usize, ErrorTypePlayerHandler> {
+        let mut count: usize = 0;
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_type = player_mutex.get_player_type()?;
+            match player_type {
+                &PlayerType::PlayerAiLocal => count += 1,
+                _ => {},
+            };
+            drop(player_mutex);
+        };
+        Ok(count)
+    }
+
+    pub fn get_player_count_ai_remote(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<usize, ErrorTypePlayerHandler> {
+        let mut count: usize = 0;
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_type = player_mutex.get_player_type()?;
+            match player_type {
+                &PlayerType::PlayerAiRemote => count += 1,
+                _ => {},
+            };
+            drop(player_mutex);
+        };
+        Ok(count)
+    }
+
+    pub fn get_player_count_local(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<usize, ErrorTypePlayerHandler> {
+        let mut count: usize = 0;
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_type = player_mutex.get_player_type()?;
+            match player_type {
+                &PlayerType::PlayerLocal => count += 1,
+                _ => {},
+            };
+            drop(player_mutex);
+        };
+        Ok(count)
+    }
+
+    pub fn get_player_count_remote(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<usize, ErrorTypePlayerHandler> {
+        let mut count: usize = 0;
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_type = player_mutex.get_player_type()?;
+            match player_type {
+                &PlayerType::PlayerRemote => count += 1,
+                _ => {},
+            };
+            drop(player_mutex);
+        };
+        Ok(count)
+    }
+
+    pub fn verify_player_exists_player_map_and_component(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+        target_id: &Uuid
+    ) -> Result<(bool, bool), ErrorTypePlayerHandler> {
+        let exists_player_map = match self.verify_player_exists_player_map(target_id) {
+            Ok(bool) => bool,
+            Err(e) => return Err(e),
+        };
+        let exists_player_component = match self.verify_player_exists_player_component(player_query, target_id) {
+            Ok(bool) => bool,
+            Err(e) => return Err(e),
+        };
+        Ok((exists_player_map, exists_player_component))
+    }
+
+    pub fn verify_player_exists_player_map(
+        &self, 
+        target_id: &Uuid,
+    ) -> Result<bool, ErrorTypePlayerHandler> {
+        let mut exists = false;
+        let player_map = &self.player_map;
+        for player in player_map {
+            if target_id == player.1 {
+                exists = true;
+            }
+        }        
+        Ok(exists)
+    }
+
+    pub fn verify_player_exists_player_component(
+        &self, 
+        player_query: &Query<&PlayerComponent>, 
+        target_id: &Uuid
+    ) -> Result<bool, ErrorTypePlayerHandler> {
+        let mut exists = false;
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_id = player_mutex.get_player_id()?;
+            if target_id == player_id {
+                exists = true;
+            }
+            drop(player_mutex);
+        }
+        Ok(exists)
+    }
+
+    pub fn get_party_local_ai_uuids_vec(
+        &self,
+        player_query: &Query<&PlayerComponent>, 
+    ) -> Result<Vec<Uuid>, ErrorTypePlayerHandler> {
+        let mut ai_index: Vec<Uuid> = Vec::new();
+        for player in player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_type = player_mutex.get_player_type()?;
+            match player_type {
+                &PlayerType::PlayerAiLocal => {
+                    let player_id = player_mutex.get_player_id()?.to_owned();
+                    ai_index.push(player_id);
+                },
+                _ => {},
+            };
+            drop(player_mutex);
         }
         Ok(ai_index)
     }
-
-    pub fn has_player_with_id(&self, target_id: Uuid) -> Result<bool, ErrorTypePlayerHandler> {
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        for player in players.iter() {
-            let unwrapped_player = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-            let player_id = unwrapped_player.get_player_id()?;
-            if player_id == &target_id {
-                return Ok(true)
-            }
-        }
-        Ok(false)
-    }
-
-    pub fn main_player_clone_player_id(&self) -> Result<Uuid, ErrorTypePlayerHandler>  {
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[0]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-        let player_id = player.get_player_id()?;
-        Ok(player_id.clone())
-    }
-
-    pub fn party_size(&self) -> Result<usize, ErrorTypePlayerHandler> {        
-        // First, lock the players mutex to get access to the Vec
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-
-        // Grab the size of the party
-        let party_size = &players.len();
-        Ok(*party_size)
-    }
-
-    pub fn player_set_player_id(&mut self, player_idx: usize, new_id: Uuid) -> Result<(), ErrorTypePlayerHandler> {
-        let players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let player_arc = &players[player_idx]; // adjusted for 1 indexing // Get the active player (Arc<Mutex<Player>>)
-        let mut player = player_arc.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?; // Lock the player mutex to get a mutable reference to the player
-        player.set_player_id(new_id)?;
-
-        Ok(())
-    }
-
-    pub fn players_add_player(&self, player: Arc<Mutex<dyn Player + Send>>) -> Result<(), ErrorTypePlayerHandler> {
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let party_size = self.party_size as usize;
-        if players.len() < party_size {
-            players.push(player);
-        } else {
-            warn!("Error: Party full!");
-        }
-
-        Ok(())
-    }
-
-    pub fn players_add_player_at_index(&self, idx: usize, player: Arc<Mutex<dyn Player + Send>>) -> Result<(), ErrorTypePlayerHandler> {
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        let party_size = self.party_size as usize;
-        if players.len() < party_size {
-            players.insert(idx, player);
-        } else {
-            warn!("Error: Party full!");
-        }
-
-        Ok(())
-    }
     
-    pub fn players_remove_ai_local(&self) -> Result<(), ErrorTypePlayerHandler> {
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-    
-        // Iterate through players and find the index of the first occurrence of "PlayerAi".
-        if let Some(index) = players.iter().position(|player| {
-            let player = player.lock().unwrap();
-            let player_type = player.get_player_type().unwrap();
-            player_type == &PlayerType::PlayerAiLocal
-        }) {
-            // Remove the player at the found index
-            players.remove(index);
+    pub fn remove_player_ai(
+        &self,
+        commands: &mut Commands,
+        player_query: &Query<&PlayerComponent>, 
+        entity_player_query: &Query<(Entity, &PlayerComponent)>, 
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        // Check for Ai Uuid
+        let ai_vec = self.get_party_local_ai_uuids_vec(player_query)?;
+        if ai_vec.len() == 0 {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("remove_player_ai: Failed... PlayerAi vec is empty...")));
         }
+        let target = ai_vec[0];
 
-        Ok(())
-    }
-    
-    pub fn players_remove_ai_remote(&self) -> Result<(), ErrorTypePlayerHandler> {
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-    
-        // Iterate through players and find the index of the first occurrence of "PlayerAi".
-        if let Some(index) = players.iter().position(|player| {
-            let player = player.lock().unwrap();
-            let player_type = player.get_player_type().unwrap();
-            player_type == &PlayerType::PlayerAiRemote
-        }) {
-            // Remove the player at the found index
-            players.remove(index);
-        }
-
-        Ok(())
-    }
-    
-    pub fn players_remove_last_player(&self) -> Result<(), ErrorTypePlayerHandler> {
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        
-        // Only pop if we have more than one player
-        if players.len() > 1 {
-            players.pop();
-        }
-
-        Ok(())
-    }
-    
-    pub fn players_remove_local_player(&self) -> Result<(), ErrorTypePlayerHandler> {
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-        
-        // Only pop if we have more than one player
-        if players.len() > 1 {
-            let mut rev_index_opt = None;
-            for (idx, player) in players.iter().rev().enumerate() {
-                let target = player.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayer")))?;
-                let player_type = target.get_player_type().unwrap();
-                if player_type == &PlayerType::PlayerLocal {
-                    rev_index_opt = Some(idx);
-                    break;
-                }
-            }
-            if let Some(rev_index) = rev_index_opt {
-                    // Convert the reversed index to the original index
-                    let original_index = players.len() - 1 - rev_index;
-        
-                    // Remove the player at the original index
-                    players.remove(original_index);
-
-                    return Ok(())
+        // Find the first ai player
+        for (entity, player) in entity_player_query.iter() {
+            let player_mutex = player.player.lock().unwrap();
+            let player_id = player_mutex.get_player_id()?;
+            if &target == player_id {
+                  commands.entity(entity).despawn_recursive();
+                  return Ok(());
             };
-            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("Failed: Reverse Index is None")))
+            drop(player_mutex);
         }
-        warn!("Party Action: Failed to remove player only main remains");
+        return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("remove_player_ai: Failed... Target does not exist...")));
+    }
+    
+    pub fn remove_player(
+        &self,
+        commands: &mut Commands,
+        entity_player_query: &Query<(Entity, &PlayerComponent)>,
+        target_player: &Uuid,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        for (entity, player) in entity_player_query {
+            let player_mutex = player.player.lock().unwrap();
+            let player_id = player_mutex.get_player_id()?;
+            if player_id == target_player {
+                commands.entity(entity).despawn_recursive();
+                return Ok(());
+            }
+            drop(player_mutex);
+        }
+        return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("remove_player: Failed... Target does not exist...")));
+    }
+
+    pub fn remove_player_from_player_map(
+        &mut self,
+        target_player: &Uuid,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        // Step 1: Find the key to remove using an immutable borrow
+        let target = self
+            .player_map
+            .iter()
+            .find(|(_, player_uuid)| *player_uuid == target_player)
+            .map(|(key, _)| *key);
+
+        if target.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(
+                "remove_player_from_player_map failed... Target does not exist...".to_string(),
+            ));
+        }
+
+        // Step 2: Remove the key using a mutable borrow
+        let target = target.unwrap();
+        self.player_map.remove(&target);
+
         Ok(())
     }
 
-    pub fn players_remove_player(&mut self, player_id: &Uuid, plugin: &ResMut<BevyEasyPlayerHandlerPlugin>) -> Result<(), ErrorTypePlayerHandler> {
-        let main_player_id = plugin.get_main_player_uuid()?;
-        let main_player_id = main_player_id.unwrap();
-
-        if main_player_id == player_id {
-            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("players_remove_player: Failure to remove [{}] Can't remove local host from party", &player_id)));
+    pub fn reorder_players(
+        &mut self, 
+        old_index: usize, 
+        new_index: usize,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        if old_index == new_index {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("reorder_players failed... new == old, No change...")))
         }
-
-        let count: usize = self.get_player_count_party()?;
-        let count_i32 = count as i32;
-        let player_idx = self.active_player_get_index()?;
-
-        // Adjust index in preperation for the resulting indexing overflow limit.
-        if player_idx == count_i32 {
-            self.active_player_set(player_idx - 1)?;
-        }
-
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-
-        // Proceed only if we have more than one player in the vector
-        if players.len() > 1 {
-            players.retain(|player| {
-                let target = player.lock().unwrap();
-                let target_id = target.get_player_id().unwrap(); 
-                target_id != player_id
-            });
+        let old_uuid = self
+            .player_map
+            .iter()
+            .find(|(index, _)| *index == &old_index)
+            .map(|(_, uuid)| *uuid);
+        if old_uuid.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("old_uuid.is_none()")));
         };
-
-        Ok(())
-    }
-
-    pub fn reorder_players(&mut self, old_index: usize, new_index: usize) -> Result<(), ErrorTypePlayerHandler> {
-        let mut players = self.players.lock().map_err(|_| ErrorTypePlayerHandler::LockFailed(format!("ArcMutexPlayersVec")))?;
-
+        let old_uuid = old_uuid.unwrap();
         
-        if old_index >= players.len() || new_index >= players.len() {
-            let msg = format!(
-                "Index out of range: old={} new={} len={}",
-                old_index, new_index, players.len()
-            );
-            return Err(ErrorTypePlayerHandler::IndexOutOfBounds(msg));
-        }
+        let new_uuid = self
+            .player_map
+            .iter()
+            .find(|(index, _)| *index == &new_index)
+            .map(|(_, uuid)| *uuid);
+        if new_uuid.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("old_uuid.is_none()")));
+        };
+        let new_uuid = new_uuid.unwrap();
         
-        if old_index != new_index {
-            let player = players.remove(old_index);
-            players.insert(new_index, player);
-        }
-    
-        Ok(())
-    }
-    
-    pub fn update_ai_index_vec(&mut self) -> Result<(), ErrorTypePlayerHandler> {
-        self.ai_vec = Some(self.get_party_ai_index_vec()?);
+        self.set_active_player_index(old_index)?;
+        self.set_active_player_uuid_player_map(&new_uuid)?;
+        self.set_active_player_index(new_index)?;
+        self.set_active_player_uuid_player_map(&old_uuid)?;
+
         Ok(())
     }
 }

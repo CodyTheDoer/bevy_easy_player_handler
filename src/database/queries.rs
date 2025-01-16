@@ -9,9 +9,10 @@ use rusqlite::Result;
 use uuid::Uuid;
 
 use crate::{
-    PlayerHandlerInterface,
     DBPlayer,
     Party,
+    PlayerComponent,
+    PlayerHandlerInterface,
 };
 
 impl PlayerHandlerInterface {    
@@ -56,18 +57,18 @@ impl PlayerHandlerInterface {
         };
     
         let mut stmt = conn
-            .prepare("SELECT uuid, email, user_name FROM player_table")
-            .map_err(|_| ErrorTypePlayerHandler::DBQueryFailed(format!("Failed: to get Existing Players")))?; 
+            .prepare("SELECT uuid, email, username FROM player_table")
+            .map_err(|_| ErrorTypePlayerHandler::DBQueryFailed(format!("query_existing_players: Failed to get existing players...")))?; 
         
         let player_iter = stmt
             .query_map([], |row| {
                 Ok(DBPlayer {
                     uuid: row.get(0)?,
                     email: row.get(1)?,
-                    user_name: row.get(2)?,
+                    username: row.get(2)?,
                 })
             })
-            .map_err(|_| ErrorTypePlayerHandler::DBQueryMappingFailed(format!("Failed: to map Existing Players")))?;
+            .map_err(|_| ErrorTypePlayerHandler::DBQueryMappingFailed(format!("query_existing_players: Failed to map existing players...")))?;
         
         let mut players: Vec<DBPlayer> = Vec::new(); 
         for player in player_iter {
@@ -92,18 +93,18 @@ impl PlayerHandlerInterface {
         };
 
         let mut stmt = conn
-            .prepare("SELECT uuid, email, user_name FROM player_table")
-            .map_err(|_| ErrorTypePlayerHandler::DBQueryFailed(format!("Failed: to get Existing Players")))?; 
+            .prepare("SELECT uuid, email, username FROM player_table")
+            .map_err(|_| ErrorTypePlayerHandler::DBQueryFailed(format!("query_main_player: Failed to get existing players...")))?; 
         
         let player_iter = stmt
             .query_map([], |row| {
                 Ok(DBPlayer {
                     uuid: row.get(0)?,
                     email: row.get(1)?,
-                    user_name: row.get(2)?,
+                    username: row.get(2)?,
                 })
             })
-            .map_err(|_| ErrorTypePlayerHandler::DBQueryMappingFailed(format!("Failed: to map Existing Players")))?;
+            .map_err(|_| ErrorTypePlayerHandler::DBQueryMappingFailed(format!("query_main_player: Failed to map existing players...")))?;
         
         let mut main_player_container: Vec<DBPlayer> = Vec::new(); 
         let mut idx: usize = 0; 
@@ -124,31 +125,36 @@ impl PlayerHandlerInterface {
         &self,
         db: &Res<DatabaseConnection>,
         party: &mut ResMut<Party>,
+        player_query: &Query<&PlayerComponent>,
     ) -> Result<bool, ErrorTypePlayerHandler> {
         info!("Init: query_party_and_db_main_player_synced:");
-    
+
+        println!("Step: 1 [ query_party_and_db_main_player_synced ]");
         let mut result_synced = false;
-    
-        let party_main_player_uuid = party.main_player_clone_player_id()?;
-        let database_main_player = match self.query_main_player(&db) {
-            Ok(dbplayer) => dbplayer,
-            Err(e) => {
-                warn!("[ Error ] query_party_and_db_main_player_synced -> query_main_player: [{:?}]", e);
-                return Err(ErrorTypePlayerHandler::DBQueryFailed(format!("Failed: to get main Player")));
-            },
-        };
-        let database_main_player_uuid = match Uuid::try_parse(database_main_player.uuid.as_str()) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                warn!("[ Error ] query_party_and_db_main_player_synced -> Uuid::try_parse(database_main_player.uuid.as_str()): [{:?}]", e);
-                return Err(ErrorTypePlayerHandler::UuidParsingFailed(e.to_string()));
-            },
-        };
-    
-        if party_main_player_uuid == database_main_player_uuid {
-            result_synced = true;
-        };
-    
+        println!("Step: 2 [ query_party_and_db_main_player_synced ]");
+        let party_size = party.get_player_count_party(player_query)?;
+        println!("party size: {}", party_size);
+        println!("Step: 3 [ query_party_and_db_main_player_synced ]");
+        if party_size > 0 {    
+            println!("Step: 4 [ query_party_and_db_main_player_synced ]");
+            let database_main_player = self.query_main_player(&db)?;
+            println!("Step: 5 [ query_party_and_db_main_player_synced ]");
+            let party_main_player_uuid = party.clone_main_player_uuid(player_query)?;
+            println!("Step: 6 [ query_party_and_db_main_player_synced ]");
+            let database_main_player_uuid = match Uuid::try_parse(database_main_player.uuid.as_str()) {
+                Ok(uuid) => uuid,
+                Err(e) => {
+                    warn!("[ Error ] query_party_and_db_main_player_synced -> Uuid::try_parse(database_main_player.uuid.as_str()): [{:?}]", e);
+                    return Err(ErrorTypePlayerHandler::UuidParsingFailed(e.to_string()));
+                },
+            };
+            println!("Step: 7 [ query_party_and_db_main_player_synced ]");
+            if party_main_player_uuid == database_main_player_uuid {
+                println!("Step: 8 [ query_party_and_db_main_player_synced ]");
+                result_synced = true;
+            };
+        }    
+        println!("Step: 9 [ query_party_and_db_main_player_synced ]");
         Ok(result_synced)
     }
     
