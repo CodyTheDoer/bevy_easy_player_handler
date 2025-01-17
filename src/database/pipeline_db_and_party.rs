@@ -46,7 +46,12 @@ impl PlayerHandlerInterface {
 
         // Init a new local player and add into the party
         let player_username = String::from(username);
-        let new_player = PlayerAi::new(None, Some(player_username.clone()), PlayerType::PlayerAiLocal);
+        let new_player = PlayerAi::new(
+            None, 
+            Some(player_username.clone()), 
+            None,
+            PlayerType::PlayerAiLocal,
+        );
         let packaged_player = Arc::new(Mutex::new(new_player));
 
         // party.players_add_player(packaged_player)?;
@@ -59,7 +64,7 @@ impl PlayerHandlerInterface {
         let party_size = party.get_player_count_party(player_query)?;
 
         // Update the active player to the new player
-        party.set_active_player_index(party_size)?;
+        party.set_active_player_index(party_size, player_query)?;
 
         println!("Init Record: [{:?}]::[{}]", party.clone_active_player_player_type(player_query)?, party.clone_active_player_uuid(player_query)?);
 
@@ -80,30 +85,46 @@ impl PlayerHandlerInterface {
     ) -> Result<(), ErrorTypePlayerHandler> {
         println!("Init: pipeline_db_and_party_add_new_synced_player_local:");
 
+        println!("Step 1 [ pipeline_db_and_party_add_new_synced_player_local ]");
         // Party Size Management Checks
         self.verify_if_party_size_exceeds_limit(plugin, party, player_query)?;
 
+        println!("Step 2 [ pipeline_db_and_party_add_new_synced_player_local ]");
         // Init a new local player and add into the party
         let player_username = String::from(username);
-        let new_player = PlayerLocal::new(None, Some(player_username.clone()), PlayerType::PlayerLocal);
+        println!("Step 3 [ pipeline_db_and_party_add_new_synced_player_local ]");
+        let synced_uuid = Uuid::now_v7();
+        println!("Step 4 [ pipeline_db_and_party_add_new_synced_player_local ]");
+        let new_player = PlayerLocal::new(
+            None, 
+            Some(player_username.clone()), 
+            Some(synced_uuid),
+            PlayerType::PlayerLocal,
+        );
+        println!("Step 5 [ pipeline_db_and_party_add_new_synced_player_local ]");
         let packaged_player: Arc<Mutex<PlayerLocal>> = Arc::new(Mutex::new(new_player));
         
-        // party.players_add_player(packaged_player)?;
+        println!("Step 6 [ pipeline_db_and_party_add_new_synced_player_local ]");
         commands.spawn(PlayerComponent{
             player: packaged_player,
         });
 
+        println!("Step 7 [ pipeline_db_and_party_add_new_synced_player_local ]");
         // Get the new party size
         let party_size = party.get_player_count_party(player_query)?;
 
-        // Update the active player to the new player
-        party.set_active_player_index(party_size)?;
+        println!("Step 8 [ pipeline_db_and_party_add_new_synced_player_local ]");
+        party.set_active_player_index(party_size, player_query)?;
 
-        println!("Init Record: [{:?}]::[{}]", party.clone_active_player_player_type(player_query)?, party.clone_active_player_uuid(player_query)?);
+        println!("Step 10 [ pipeline_db_and_party_add_new_synced_player_local ]");
+        let player_type = party.clone_active_player_player_type(player_query)?;
+        println!("Init Record: [{:?}]::[{}]", player_type, synced_uuid);
 
+        println!("Step 11 [ pipeline_db_and_party_add_new_synced_player_local ]");
         // Build the new database record referencing the new player record in the party
-        self.action_insert_player_record(&db, &party.clone_active_player_uuid(player_query)?, Some(&String::from("PlayerLocal")), Some(&player_username), PlayerType::PlayerLocal)?;
+        self.action_insert_player_record(&db, &synced_uuid, Some(&String::from("PlayerLocal")), Some(&player_username), PlayerType::PlayerLocal)?;
 
+        println!("Success [ pipeline_db_and_party_add_new_synced_player_local ]");
         Ok(())
     }
 
@@ -172,66 +193,98 @@ impl PlayerHandlerInterface {
         player_query: &Query<&PlayerComponent>,
         plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
     ) -> Result<(), ErrorTypePlayerHandler> {
-        println!("Init: pipeline_db_and_party_add_player_to_party_from_db:");
+        println!("Init: pipeline_db_and_party_add_player_to_party_from_db");
         dotenv().ok();
 
+        println!("Step 1: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         // grab the test ref uuid from .env
         let test_ref_uuid_string = match env::var("TEST_REF_PLAYER_UUID") {
             Ok(value) => value,
             Err(VarError::NotPresent) => {
+                println!("Error 1: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 return Err(ErrorTypePlayerHandler::VarErrorNotPresent)
             },
             Err(VarError::NotUnicode(err)) => {
+                println!("Error 2: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 let err_string = err.into_string().unwrap();
                 return Err(ErrorTypePlayerHandler::VarErrorNotUnicode(err_string))
             },
         };
 
+        println!("Step 2: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         let test_ref_uuid = match Uuid::try_parse(test_ref_uuid_string.as_str()) {
             Ok(uuid) => uuid,
             Err(e) =>{
+                println!("Error 3: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 return Err(ErrorTypePlayerHandler::UuidParsingFailed(e.to_string()))},
         };
 
+        println!("Step 3: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         if test_ref_uuid == *existing_uuid {
+            println!("Error 4: [ pipeline_db_and_party_add_player_to_party_from_db ]");
             return Err(ErrorTypePlayerHandler::AddPlayerFromDbToPartyFailed(format!("Player: [{}] is the test reference, not a valid player", &existing_uuid)))
         }
 
+        println!("Step 4: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         let party_ids = party.get_all_players_ids(player_query)?;
         for player in party_ids {
             if player == *existing_uuid {
+                println!("Error 5: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 return Err(ErrorTypePlayerHandler::AddPlayerFromDbToPartyFailed(format!("Player: [{}] is already in the party", &existing_uuid)))
             }
         };
 
+        println!("Step 5: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         // Party Size Management Checks
         self.verify_if_party_size_exceeds_limit(plugin, party, player_query)?;
 
         println!("[ verify_if_party_size_exceeds_limit ]: Success...");
 
+        println!("Step 6: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         // query existing players and search for provided uuid
         let existing_players_vec = self.query_existing_players(&db)?;
 
+        println!("Step 7: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         let mut player_match = false;
+        println!("Step 8: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         let target_uuid_string_ref = &existing_uuid.to_string();
+        println!("target_uuid_string_ref: [ {} ]", target_uuid_string_ref);
+        println!("Step 9: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         for player in existing_players_vec {
+            println!("Step 10: [ pipeline_db_and_party_add_player_to_party_from_db ]");
             let player_uuid_string_ref = player.get_uuid_string();
+            println!("player_uuid_string_ref: [ {} ]", player_uuid_string_ref);
+            println!("Step 11: [ pipeline_db_and_party_add_player_to_party_from_db ]");
             if player_uuid_string_ref == target_uuid_string_ref {
+                println!("Step 12: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 // Init a new local player and add into the party
                 let player_username = player.get_username_string();
-                let new_player = PlayerLocal::new(None, Some(player_username.clone()), PlayerType::PlayerLocal);
+                println!("player_username: [ {} ]", player_username);
+                println!("Step 13: [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                let new_player = PlayerLocal::new(
+                    None, 
+                    Some(player_username.clone()), 
+                    Some(*existing_uuid),
+                    PlayerType::PlayerLocal,
+                );
+                println!("Step 14: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 let packaged_player: Arc<Mutex<PlayerLocal>> = Arc::new(Mutex::new(new_player));
+                println!("Step 15: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 commands.spawn(PlayerComponent{
                     player: packaged_player,
                 });
+                println!("Step 16: [ pipeline_db_and_party_add_player_to_party_from_db ]");
                 player_match = true;
             }
         }
 
+        println!("Step 17: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         if !player_match {
+            println!("Error 6: [ pipeline_db_and_party_add_player_to_party_from_db ]");
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("pipeline_db_and_party_add_player_from_db_to_party: Failed")))
         }
 
+        println!("Step 18: [ pipeline_db_and_party_add_player_to_party_from_db ]");
         Ok(())
     }
 
@@ -330,16 +383,6 @@ impl PlayerHandlerInterface {
             println!("Step: 8 [ pipeline_db_and_party_sync_main_player_uuids ]");
             party.set_active_player_uuid_player_map_and_component(player_query, database_main_player_uuid)?;
         };
-        // println!("Step: 8 [ pipeline_db_and_party_sync_main_player_uuids ]");
-            
-            // println!("Info: pipeline_db_and_party_sync_main_player_uuids:");
-            // println!("{:?}", party.all_players_get_ids());
-
-            // // The init process doubles the host player in the party, needs to be fixed,
-            // // skill issue I don't want to tackle immediately. 
-            // let mut players = party.players.lock().unwrap();
-            // players.pop(); 
-
         Ok(())
     }
 

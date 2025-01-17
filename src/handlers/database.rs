@@ -48,17 +48,12 @@ impl PlayerHandlerInterface {
         let player_component = PlayerMain::new(
             Some(player_email), 
             Some(player_username),
+            None,
             PlayerType::PlayerMain,
         );
 
         let player: Arc<Mutex<dyn Player + Send>> = Arc::new(Mutex::new(player_component));
         commands.spawn(PlayerComponent{player: player});
-        // match party.players_add_player(player) {
-        //     Ok(success) => success,
-        //     Err(e) => {
-        //         warn!("Error: startup_protocol -> party.players_add_player [ Failed ] Error: {:?}", e);
-        //     },
-        // };
     }
 
     pub fn start_up_protocol_finish(
@@ -110,12 +105,6 @@ impl PlayerHandlerInterface {
                 }, 
             };
         }
-
-        
-        // let mut players = party.players.lock().unwrap();
-        // players.pop(); 
-        // The init process doubles the host player in the party, needs to be fixed,
-        // skill issue I don't want to tackle immediately. 
     }
 
     // --- Internal Helper Functions --- //
@@ -128,16 +117,23 @@ impl PlayerHandlerInterface {
     ) -> Result<(), ErrorTypePlayerHandler> {
         info!("Init: verify_if_party_size_exceeds_limit:");
 
+        info!("Step 1 [ verify_if_party_size_exceeds_limit ]");
         // Party Size Management Checks
         let party_size_limit = plugin.party_size.unwrap() as usize;
+        info!("Step 2 [ verify_if_party_size_exceeds_limit ]");
         let party_size = party.get_player_count_party(&player_query)?;
 
+        info!("Step 3 [ verify_if_party_size_exceeds_limit ]");
         if party_size == party_size_limit {
+            info!("Error 1 [ verify_if_party_size_exceeds_limit ]");
             return Err(ErrorTypePlayerHandler::PartySizeAtSetLimit)
         }
+        info!("Step 4 [ verify_if_party_size_exceeds_limit ]");
         if party_size > party_size_limit {
+            info!("Errro 1 [ verify_if_party_size_exceeds_limit ]");
             return Err(ErrorTypePlayerHandler::PartySizeGreaterThanSetLimit)
         }
+        info!("Success [ verify_if_party_size_exceeds_limit ]");
         Ok(())
     }
 }

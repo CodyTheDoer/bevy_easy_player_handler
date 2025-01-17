@@ -9,7 +9,7 @@ File,Item Type,Name
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::pipeline_db_and_party_add_player_from_db_to_party
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::pipeline_db_and_party_init_test_ref_and_main_player
 .\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::pipeline_db_and_party_sync_main_player_uuids
-.\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::test_ref_println
+.\src\database\pipeline_db_and_party.rs,ImplFn,PlayerHandlerInterface::test_ref_info
 .\src\database\queries.rs,ImplFn,PlayerHandlerInterface::query_count_existing_players
 .\src\database\queries.rs,ImplFn,PlayerHandlerInterface::query_existing_players
 .\src\database\queries.rs,ImplFn,PlayerHandlerInterface::query_main_player
@@ -27,7 +27,9 @@ File,Item Type,Name
 .\src\handlers\party.rs,ImplFn,Party::clone_active_player_player_type
 .\src\handlers\party.rs,ImplFn,Party::clone_active_player_player_username
 .\src\handlers\party.rs,ImplFn,Party::clone_active_player_uuid
-.\src\handlers\party.rs,ImplFn,Party::clone_player_target_uuid
+.\src\handlers\party.rs,ImplFn,Party::clone_main_player_uuid
+.\src\handlers\party.rs,ImplFn,Party::clone_player
+.\src\handlers\party.rs,ImplFn,Party::clone_player_map
 .\src\handlers\party.rs,ImplFn,Party::get_active_player_index
 .\src\handlers\party.rs,ImplFn,Party::get_all_players_ids
 .\src\handlers\party.rs,ImplFn,Party::get_all_players_ids_and_types
@@ -40,6 +42,7 @@ File,Item Type,Name
 .\src\handlers\party.rs,ImplFn,Party::get_player_count_party
 .\src\handlers\party.rs,ImplFn,Party::get_player_count_remote
 .\src\handlers\party.rs,ImplFn,Party::get_player_map_active_player_uuid
+.\src\handlers\party.rs,ImplFn,Party::init_main_player_uuid_player_map
 .\src\handlers\party.rs,ImplFn,Party::new
 .\src\handlers\party.rs,ImplFn,Party::remove_player
 .\src\handlers\party.rs,ImplFn,Party::remove_player_ai

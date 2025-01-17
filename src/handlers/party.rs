@@ -44,31 +44,6 @@ macro_rules! player_query_get_player_lock {
     }};
 }
 
-
-//         println!("MACRO Step: 1 [ player_query_get_player_lock ]");
-//         let mut player_match: Vec<&PlayerComponent> = 
-//             $player_query
-//                 .iter().filter(
-//                     |player|{
-//                         println!("MACRO Step: 2 [ player_query_get_player_lock ]");
-//                         // let player_lock = player.to_owned().player.lock().unwrap();
-//                         let player_lock = *player.player.lock().unwrap();
-//                         println!("MACRO Step: 3 [ player_query_get_player_lock ]");
-//                         let player_id = player_lock.get_player_id().unwrap();
-//                         println!("MACRO Step: 4 [ player_query_get_player_lock ]");
-//                         return $target_uuid == player_id;
-//                     }
-//                 )
-//                 .map(|player|player).collect();
-//         println!("MACRO Step: 5 [ player_query_get_player_lock ]");
-//         let player = player_match.remove(0);
-//         println!("MACRO Step: 6 [ player_query_get_player_lock ]");
-//         let player_lock = player.player.lock().unwrap();
-//         println!("MACRO Step: 7 [ player_query_get_player_lock ]");
-//         player_lock
-//     }};
-// }
-
 impl Party {
     pub fn new() -> Self {
         let active_player: usize = 1;
@@ -129,8 +104,28 @@ impl Party {
         Ok(active_player)
     }
 
-    pub fn set_active_player_index(&mut self, target: usize) -> Result<(), ErrorTypePlayerHandler> {
+    pub fn set_active_player_index(
+        &mut self, 
+        target: usize, 
+        player_query: &Query<&PlayerComponent>
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: set_active_player_index:");
+        println!("Old: [ {} ], New: [ {} ], MapMax: [ {} ], QueryMax: [ {} ]", 
+            self.active_player, 
+            target, 
+            self.player_map.len(), 
+            {
+                let mut count = 0; 
+                for _ in player_query.iter() { 
+                    count += 1
+                }; 
+                count
+            }
+        );
+        println!("Step 1 [ set_active_player_index ]");
         self.active_player = target;
+        println!("Updated: [ {} ]", self.active_player);
+        println!("Complete [ set_active_player_index ]");
         Ok(())
     }
 
@@ -138,18 +133,31 @@ impl Party {
         &self,
         player_query: &Query<&PlayerComponent>,
     ) -> Result<PlayerType, ErrorTypePlayerHandler> {
+        println!("Init: clone_active_player_player_type:");
+        println!("Step: 1 [ clone_active_player_player_type ]");
         let target_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ clone_active_player_player_type ]");
         let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        println!("Step: 3 [ clone_active_player_player_type ]");
         if player_component.is_none() {
+            println!("Error: 1 [ clone_active_player_player_type ]");
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
         }
+        println!("Step: 4 [ clone_active_player_player_type ]");
         let player_component = player_component.unwrap();
+        println!("Step: 5 [ clone_active_player_player_type ]");
         let player_mutex = match player_component.player.lock(){
             Ok(player) => player,
-            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+            Err(e) => {
+                println!("Error: 2 [ clone_active_player_player_type ]");
+                return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e)));
+            }
         };
+        println!("Step: 6 [ clone_active_player_player_type ]");
         let player_type = player_mutex.get_player_type()?.clone();
+        println!("Step: 7 [ clone_active_player_player_type ]");
         drop(player_mutex);
+        println!("Step: 8 [ clone_active_player_player_type ]");
         Ok(player_type.to_owned())
     }
 
@@ -157,18 +165,31 @@ impl Party {
         &self,
         player_query: &Query<&PlayerComponent>,
     ) -> Result<String, ErrorTypePlayerHandler> {
+        println!("Init: clone_active_player_player_email:");
+        println!("Step: 1 [ clone_active_player_player_email ]");
         let target_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ clone_active_player_player_email ]");
         let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        println!("Step: 3 [ clone_active_player_player_email ]");
         if player_component.is_none() {
+            println!("Error: 1 [ clone_active_player_player_email ]");
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
         }
+        println!("Step: 4 [ clone_active_player_player_email ]");
         let player_component = player_component.unwrap();
+        println!("Step: 5 [ clone_active_player_player_email ]");
         let player_mutex = match player_component.player.lock(){
             Ok(player) => player,
-            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+            Err(e) => {
+                println!("Error: 2 [ clone_active_player_player_email ]");
+                return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e)));
+            },
         };
+        println!("Step: 6 [ clone_active_player_player_email ]");
         let player_email = player_mutex.get_player_email()?.clone();
+        println!("Step: 7 [ clone_active_player_player_email ]");
         drop(player_mutex);
+        println!("Step: 8 [ clone_active_player_player_email ]");
         Ok(player_email.to_owned())
     }
 
@@ -176,18 +197,30 @@ impl Party {
         &self,
         player_query: &Query<&PlayerComponent>,
     ) -> Result<Uuid, ErrorTypePlayerHandler> {
+        println!("Init: clone_active_player_uuid:");
+        println!("Step: 1 [ clone_active_player_uuid ]");
         let target_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ clone_active_player_uuid ]");
         let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        println!("Step: 3 [ clone_active_player_uuid ]");
         if player_component.is_none() {
+            println!("Error: 1 [ clone_active_player_uuid ]");
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
         }
+        println!("Step: 4 [ clone_active_player_uuid ]");
         let player_component = player_component.unwrap();
+        println!("Step: 5 [ clone_active_player_uuid ]");
         let player_mutex = match player_component.player.lock(){
             Ok(player) => player,
-            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
-        };
+            Err(e) => {
+                println!("Error: 2 [ clone_active_player_player_type ]");
+                return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e)));
+            }        };
+        println!("Step: 6 [ clone_active_player_uuid ]");
         let player_id = player_mutex.get_player_id()?.clone();
+        println!("Step: 7 [ clone_active_player_uuid ]");
         drop(player_mutex);
+        println!("Step: 8 [ clone_active_player_uuid ]");
         Ok(player_id)
     }
 
@@ -195,18 +228,31 @@ impl Party {
         &self, 
         player_query: &Query<&PlayerComponent>,
     ) -> Result<String, ErrorTypePlayerHandler> {
+        println!("Init: clone_active_player_player_username:");
+        println!("Step: 1 [ clone_active_player_player_username ]");
         let target_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ clone_active_player_player_username ]");
         let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        println!("Step: 3 [ clone_active_player_player_username ]");
         if player_component.is_none() {
+            println!("Error: 1 [ clone_active_player_player_username ]");
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
         }
+        println!("Step: 4 [ clone_active_player_player_username ]");
         let player_component = player_component.unwrap();
+        println!("Step: 5 [ clone_active_player_player_username ]");
         let player_mutex = match player_component.player.lock(){
             Ok(player) => player,
-            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+            Err(e) => {
+                println!("Error: 2 [ clone_active_player_player_type ]");
+                return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e)));
+            }
         };
+        println!("Step: 5 [ clone_active_player_player_username ]");
         let player_username = player_mutex.get_player_username()?.to_owned();
+        println!("Step: 6 [ clone_active_player_player_username ]");
         drop(player_mutex);
+        println!("Step: 7 [ clone_active_player_player_username ]");
         Ok(player_username.to_owned())
     }
 
@@ -215,18 +261,31 @@ impl Party {
         player_query: &Query<&PlayerComponent>, 
         player_email: &str,
     ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: set_active_player_email:");
+        println!("Step: 1 [ set_active_player_email ]");
         let target_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ set_active_player_email ]");
         let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        println!("Step: 3 [ set_active_player_email ]");
         if player_component.is_none() {
+            println!("Error: 1 [ set_active_player_email ]");
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
         }
+        println!("Step: 4 [ set_active_player_email ]");
         let player_component = player_component.unwrap();
+        println!("Step: 5 [ set_active_player_email ]");
         let mut player_mutex = match player_component.player.lock(){
             Ok(player) => player,
-            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+            Err(e) => {
+                println!("Error: 2 [ clone_active_player_player_type ]");
+                return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e)));
+            }
         };
+        println!("Step: 6 [ set_active_player_email ]");
         player_mutex.set_player_email(player_email)?;
+        println!("Step: 7 [ set_active_player_email ]");
         drop(player_mutex);
+        println!("Step: 8 [ set_active_player_email ]");
         Ok(())
     }
 
@@ -235,18 +294,31 @@ impl Party {
         player_query: &Query<&PlayerComponent>, 
         player_username: &str,
     ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: set_active_player_username:");
+        println!("Step: 1 [ set_active_player_username ]");
         let target_uuid = self.get_player_map_active_player_uuid()?;
+        println!("Step: 2 [ set_active_player_username ]");
         let player_component = player_query_get_player_lock!(player_query, target_uuid);
+        println!("Step: 3 [ set_active_player_username ]");
         if player_component.is_none() {
+            println!("Error: 1 [ set_active_player_username ]");
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("clone_active_player_player_type -> player_component.is_none()")))
         }
+        println!("Step: 4 [ set_active_player_username ]");
         let player_component = player_component.unwrap();
+        println!("Step: 5 [ set_active_player_username ]");
         let mut player_mutex = match player_component.player.lock(){
             Ok(player) => player,
-            Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
+            Err(e) => {
+                println!("Error: 2 [ clone_active_player_player_type ]");
+                return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e)));
+            }
         };
+        println!("Step: 6 [ set_active_player_username ]");
         player_mutex.set_player_username(player_username)?;
+        println!("Step: 7 [ set_active_player_username ]");
         drop(player_mutex);
+        println!("Step: 8 [ set_active_player_username ]");
         Ok(())
     }
 
@@ -672,6 +744,7 @@ impl Party {
         &mut self, 
         old_index: usize, 
         new_index: usize,
+        player_query: &Query<&PlayerComponent>
     ) -> Result<(), ErrorTypePlayerHandler> {
         if old_index == new_index {
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("reorder_players failed... new == old, No change...")))
@@ -696,9 +769,9 @@ impl Party {
         };
         let new_uuid = new_uuid.unwrap();
         
-        self.set_active_player_index(old_index)?;
+        self.set_active_player_index(old_index, player_query)?;
         self.set_active_player_uuid_player_map(&new_uuid)?;
-        self.set_active_player_index(new_index)?;
+        self.set_active_player_index(new_index, player_query)?;
         self.set_active_player_uuid_player_map(&old_uuid)?;
 
         Ok(())
