@@ -607,7 +607,7 @@ impl Party {
         player_query: &Query<&PlayerComponent>, 
         target_id: &Uuid
     ) -> Result<(bool, bool), ErrorTypePlayerHandler> {
-        let exists_player_map = match self.verify_player_exists_player_map(target_id) {
+        let exists_player_map = match self.verify_player_exists_player_map_uuid(target_id) {
             Ok(bool) => bool,
             Err(e) => return Err(e),
         };
@@ -618,7 +618,7 @@ impl Party {
         Ok((exists_player_map, exists_player_component))
     }
 
-    pub fn verify_player_exists_player_map(
+    pub fn verify_player_exists_player_map_uuid(
         &self, 
         target_id: &Uuid,
     ) -> Result<bool, ErrorTypePlayerHandler> {
@@ -630,6 +630,28 @@ impl Party {
             }
         }        
         Ok(exists)
+    }
+
+    pub fn verify_player_exists_player_map_index(
+        &self, 
+        target_idx: usize,
+    ) -> Result<bool, ErrorTypePlayerHandler> {
+        println!("Init: [ verify_player_exists_player_map_index ]");
+        println!("Target Index: {} [ verify_player_exists_player_map_index ]", target_idx);
+        let mut exists = false;
+        println!("Step 1 [ verify_player_exists_player_map_index ]");
+        let player_map = &self.player_map;
+        println!("Step 2 [ verify_player_exists_player_map_index ]");
+        for player in player_map {
+            println!("[ player_map[{}] ]: player info (usize, uuid) [{:?}]", target_idx, player);
+            if &target_idx == player.0 {
+                println!("Success [ verify_player_exists_player_map_index ]");
+                exists = true;
+                return Ok(exists)
+            }
+        }
+        println!("Error 1 [ verify_player_exists_player_map_index ]");
+        return Ok(exists)
     }
 
     pub fn verify_player_exists_player_component(
@@ -696,7 +718,7 @@ impl Party {
     }
     
     pub fn remove_player(
-        &self,
+        &mut self,
         commands: &mut Commands,
         entity_player_query: &Query<(Entity, &PlayerComponent)>,
         plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
@@ -706,24 +728,27 @@ impl Party {
         if main_player == target_player {
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("Unable to remove player... Main Player is local host...")))
         }
+        let mut despawned = false;
         for (entity, player) in entity_player_query {
             let player_mutex = player.player.lock().unwrap();
             let player_id = player_mutex.get_player_id()?;
-            let mut despawn = false;
             if player_id == target_player {
-                despawn = true;
+                despawned = true;
                 commands.entity(entity).despawn_recursive();
             }
             drop(player_mutex);
-            if despawn {
-                return Ok(());
-            }
         }
-        return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("remove_player: Failed... Target does not exist...")));
+        if despawned {
+            self.player_map_remove_player(plugin, target_player)?;
+            return Ok(());
+        } else {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("remove_player: Failed... Target does not exist...")));
+        }
     }
 
-    pub fn remove_player_from_player_map(
+    pub fn player_map_remove_player(
         &mut self,
+        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
         target_player: &Uuid,
     ) -> Result<(), ErrorTypePlayerHandler> {
         // Step 1: Find the key to remove using an immutable borrow
@@ -743,10 +768,140 @@ impl Party {
         let target = target.unwrap();
         self.player_map.remove(&target);
 
+        self.player_map_check_for_players_and_collapse_missing(plugin)?;
+
         Ok(())
     }
 
-    pub fn reorder_players(
+    pub fn player_map_check_for_players_and_collapse_missing(
+        &mut self,
+        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init [ player_map_check_for_players_and_collapse_missing ]");
+        println!("Step 1 [ player_map_check_for_players_and_collapse_missing ]");
+        let party_limit = plugin.get_party_size_limit()?;
+        println!("Step 2 [ player_map_check_for_players_and_collapse_missing ]");
+        if party_limit.is_none() {
+            println!("Error 1 [ player_map_check_for_players_and_collapse_missing ]");
+            return Err(ErrorTypePlayerHandler::PluginDataRetreivalFailed(format!("plugin.get_party_size_limit()? is None...")))
+        }
+        println!("Step 3 [ player_map_check_for_players_and_collapse_missing ]");
+        let party_limit: usize = *party_limit.unwrap();
+        println!("Step 4 [ player_map_check_for_players_and_collapse_missing ]");
+        let mut party_idx: usize = 0;
+        println!("Step 5 [ player_map_check_for_players_and_collapse_missing ]");
+
+        // Build the reorder reference vec
+        let mut reorder_list: Vec<(usize, bool)> = Vec::new(); 
+        println!("Step 6 [ player_map_check_for_players_and_collapse_missing ]");
+        println!("Before: party_limit: [{:?}], party_idx: [{:?}] \n[{:?}]", party_limit, party_idx, reorder_list);
+        loop {
+            println!("Loop 6.1 [ player_map_check_for_players_and_collapse_missing ]");
+            party_idx += 1;
+            println!("Loop 6.2 [ player_map_check_for_players_and_collapse_missing ]");
+            reorder_list.push((party_idx, false));
+            println!("Loop 6.3 [ player_map_check_for_players_and_collapse_missing ]");
+            println!("player map ref building: party_limit: [{:?}], party_idx: [{:?}] \n[{:?}]", party_limit, party_idx, reorder_list);
+            println!("Loop 6.4 [ player_map_check_for_players_and_collapse_missing ]");
+            if party_idx == party_limit {
+                println!("Success [ player_map_check_for_players_and_collapse_missing ]");
+                break;
+            }
+            else {
+                println!("Loop 6.5 [ player_map_check_for_players_and_collapse_missing ]");
+                continue;
+            }
+        }
+
+        // // Update the reorder reference vec with real values
+        // println!("Step 7 [ player_map_check_for_players_and_collapse_missing ]");
+        // for n in 0..party_limit {
+        //     if self.verify_player_exists_player_map_index(n + 1)? { //indexed logic
+        //         println!("Step 8 [ player_map_check_for_players_and_collapse_missing ]");
+        //         reorder_list[n].1 = true;
+        //         println!("Order flag marking[n: {}]: party_limit: [{:?}], party_idx: [{:?}] \n[{:?}]", n, party_limit, party_idx, reorder_list);
+        //     }
+        // }
+
+        // iterate through the reorder reference vec and identify player_map entries that need to be shifted
+        println!("Step 7 [ player_map_check_for_players_and_collapse_missing ]");
+        loop {
+            // Update the reorder reference vec with real values
+            println!("Loop 7.0 [ player_map_check_for_players_and_collapse_missing ]");
+            for n in 0..party_limit {
+                if self.verify_player_exists_player_map_index(n + 1)? { //indexed logic
+                    println!("Loop 7.0 true [ player_map_check_for_players_and_collapse_missing ]");
+                    reorder_list[n].1 = true;
+                    println!("Order flag marking[n: {}]: party_limit: [{:?}], party_idx: [{:?}] \n[{:?}]", n, party_limit, party_idx, reorder_list);
+                } else {
+                    println!("Loop 7.0 false [ player_map_check_for_players_and_collapse_missing ]");
+                    reorder_list[n].1 = false;
+                }
+            }
+            // create containers for first false and next existing
+            println!("Loop 7.1 [ player_map_check_for_players_and_collapse_missing ]");
+            let mut first_false: Option<usize> = None;
+            println!("Loop 7.2 [ player_map_check_for_players_and_collapse_missing ]");
+            let mut next_existing: Option<usize> = None;
+            
+            // Identify first false and next existing
+            println!("Loop 7.3 [ player_map_check_for_players_and_collapse_missing ]"); 
+            for entry in reorder_list.iter() {
+                println!("Loop 7.4 [ player_map_check_for_players_and_collapse_missing ]");
+                match entry.1 {
+                    false => {
+                        println!("Loop 7.4 false [ player_map_check_for_players_and_collapse_missing ]");
+                        first_false = Some(entry.0);
+                        println!("First false: [{:?}]", first_false);
+                    },
+                    true => {
+                        println!("Loop 7.4 true [ player_map_check_for_players_and_collapse_missing ]");
+                        if first_false.is_some() {
+                            println!("Loop 7.5. [ player_map_check_for_players_and_collapse_missing ]");
+                            next_existing = Some(entry.0);
+                            println!("Next Existing: [{:?}]", next_existing);
+                            break;
+                        }
+                    },
+                }
+            }
+            println!("Loop 7 Inner-Results: First false: [{:?}]", first_false);
+            println!("Loop 7 Inner-Results: Next Existing: [{:?}]", next_existing);
+            println!("player_map_order_players -> reorder_list:\nparty_limit: [{:?}], party_idx: [{:?}] \n[{:?}]", party_limit, party_idx, reorder_list);
+
+            println!("Loop 7.6 [ player_map_check_for_players_and_collapse_missing ]");
+            if first_false.is_none() {
+                println!("Error 2 [ player_map_check_for_players_and_collapse_missing ]");
+                return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("player_map_check_for_players_and_collapse_missing failed: [ Party full, no index gap to collapse ]")))
+            };
+            println!("Loop 7.7 [ player_map_check_for_players_and_collapse_missing ]");
+            if next_existing.is_none() {
+                break;
+                // println!("Error 3 [ player_map_check_for_players_and_collapse_missing ]");
+                // return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("player_map_check_for_players_and_collapse_missing -> next_existing.is_none()")))
+            };
+            println!("Loop 7.8 [ player_map_check_for_players_and_collapse_missing ]");
+            let target = next_existing.unwrap();
+            println!("Loop 7.8 [ player_map_check_for_players_and_collapse_missing ]");
+            let target_uuid = self.player_map.get(&target);
+            println!("Loop 7.9 [ player_map_check_for_players_and_collapse_missing ]");
+            if target_uuid.is_none() {
+                println!("Error 3 [ player_map_check_for_players_and_collapse_missing ]");
+                return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("player_map_check_for_players_and_collapse_missing -> extracted_uuid.is_none()")))
+            };
+            println!("Loop 7.10 [ player_map_check_for_players_and_collapse_missing ]");
+            let extracted_uuid = target_uuid.unwrap();
+            println!("Loop 7.11 [ player_map_check_for_players_and_collapse_missing ]");
+            self.player_map.insert(first_false.unwrap(), *extracted_uuid);
+            println!("Loop 7.12 [ player_map_check_for_players_and_collapse_missing ]");
+            self.player_map.remove(&next_existing.unwrap());
+            println!("player_map_order_players -> reorder_list:\nAfter:\nparty_limit: [{:?}], party_idx: [{:?}] \n[{:?}]", party_limit, party_idx, reorder_list);
+        }
+        println!("Success [ player_map_check_for_players_and_collapse_missing ]");
+        Ok(())
+    }
+
+    pub fn player_map_swap_players(
         &mut self, 
         old_index: usize, 
         new_index: usize,

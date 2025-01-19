@@ -119,7 +119,36 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
         app.add_systems(Startup, PlayerHandlerInterface::start_up_protocol);
         app.add_systems(Update, on_player_component_spawned);
         app.add_systems(Update, PlayerHandlerInterface::start_up_protocol_finish.run_if(run_once()));
+        app.add_systems(Update, on_player_component_despawned);
     }
+}
+
+// System to trigger when PlayerComponent is despawned
+pub fn on_player_component_despawned(
+    // mut party: ResMut<Party>,
+    mut removals: RemovedComponents<PlayerComponent>,
+    // entity_player_query: Query<(Entity, &PlayerComponent)>,
+) {
+    // let mut player_entity: Option<Entity> = None;
+    for entity in removals.read() {
+        println!("Player Component Entity {:?} was removed.", entity);
+        // player_entity = Some(entity);
+    }
+    // if player_entity.is_none() {
+    //     return;
+    // }
+    
+    // for (entity, player) in entity_player_query.iter() {
+    //     println!("Player Component Entity {:?} query... Do any match?", entity);
+    //     if player_entity.unwrap() == entity {
+    //         let player_mutex = player.player.lock();
+    //         let player = player_mutex.expect("on_player_component_despawned -> player.player.lock() Mutex retreival failed");
+    //         let target_uuid = player.get_player_id().expect("on_player_component_despawned -> player.get_player_id() failed");
+    //         let player_id = target_uuid.clone();
+    //         drop(player);
+    //         party.remove_player_from_player_map(&player_id).expect("on_player_component_despawned -> self.remove_player_from_player_map(player_id) Failed");
+    //     }
+    // }
 }
 
 // System to trigger when PlayerComponent is spawned
@@ -207,7 +236,7 @@ pub fn on_player_component_spawned(
                 drop(player_mutex);
 
                 println!("Step 19 [ on_player_component_spawned ]");
-                let map_entry_exists = match party.verify_player_exists_player_map(&player_uuid) {
+                let map_entry_exists = match party.verify_player_exists_player_map_uuid(&player_uuid) {
                     Ok(status) => status,
                     Err(e) => {
                         println!("Error 5 [ on_player_component_spawned ]");
