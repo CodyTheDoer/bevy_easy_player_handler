@@ -11,10 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     // BevyEasyPlayerHandlerPlugin,
-    Party,
-    // Player,
-    PlayerComponent,
-    PlayerType,
+    BevyEasyPlayerHandlerPlugin, Party, PlayerComponent, PlayerType
 };
 
 macro_rules! player_query_get_player_lock {
@@ -702,16 +699,25 @@ impl Party {
         &self,
         commands: &mut Commands,
         entity_player_query: &Query<(Entity, &PlayerComponent)>,
+        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
         target_player: &Uuid,
     ) -> Result<(), ErrorTypePlayerHandler> {
+        let main_player = plugin.get_main_player_uuid()?.unwrap();
+        if main_player == target_player {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("Unable to remove player... Main Player is local host...")))
+        }
         for (entity, player) in entity_player_query {
             let player_mutex = player.player.lock().unwrap();
             let player_id = player_mutex.get_player_id()?;
+            let mut despawn = false;
             if player_id == target_player {
+                despawn = true;
                 commands.entity(entity).despawn_recursive();
-                return Ok(());
             }
             drop(player_mutex);
+            if despawn {
+                return Ok(());
+            }
         }
         return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("remove_player: Failed... Target does not exist...")));
     }

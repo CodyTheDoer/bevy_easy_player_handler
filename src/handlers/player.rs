@@ -1,6 +1,7 @@
 use crate::{
     Player,
-    PlayerAi,
+    PlayerAiLocal,
+    PlayerAiRemote,
     PlayerLocal,
     PlayerMain,
     PlayerRemote,
@@ -13,10 +14,9 @@ use std::sync::Mutex;
 
 use uuid::Uuid;
 
- //  -> Result<(), ErrorTypePlayerHandler> 
-impl Player for PlayerAi {
+impl Player for PlayerAiLocal {
     fn new(player_email: Option<String>, player_username: Option<String>, player_uuid: Option<Uuid>, player_type: PlayerType) -> Self {
-        PlayerAi {
+        PlayerAiLocal {
             player_email: player_email.map(|email| email),
             player_type: player_type,
             player_username: player_username.map(|username| username), 
@@ -25,20 +25,22 @@ impl Player for PlayerAi {
     }
 
     fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
-        let mut clone: PlayerAi = self.clone();
+        let mut clone: PlayerAiLocal = self.clone();
         clone.player_uuid = Uuid::now_v7();
         if clone.player_uuid == self.player_uuid {
             return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-                format!("PlayerAi::clone_with_new_id() Error: New Uuid didn't integrate properly")
+                format!("PlayerAiLocal::clone_with_new_id() Error: New Uuid didn't integrate properly")
             ))}
-        let secured_clone: Arc<Mutex<PlayerAi>> = Arc::new(Mutex::new(clone));
+        let secured_clone: Arc<Mutex<PlayerAiLocal>> = Arc::new(Mutex::new(clone));
         Ok(secured_clone)
     }
 
     fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler> {
         match &self.player_email {
             Some(player_email) => Ok(player_email),
-            None => Err(ErrorTypePlayerHandler::PlayerAiCallFailed(format!("PlayerAi::get_player_email() Error: Missing Player Email"))),
+            None => Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                format!("PlayerAiLocal::get_player_email() Error: Missing Player Email")
+            )),
         }
     }
 
@@ -57,7 +59,9 @@ impl Player for PlayerAi {
     fn get_player_username(&self) -> Result<&String, ErrorTypePlayerHandler> {
         match &self.player_username {
             Some(player_username) => Ok(player_username),
-            None => Err(ErrorTypePlayerHandler::PlayerAiCallFailed(format!("PlayerAi::get_player_username() Error: Missing Player User Name"))),
+            None => Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                format!("PlayerAiLocal::get_player_username() Error: Missing Player User Name")
+            )),
         }
     }
 
@@ -69,13 +73,13 @@ impl Player for PlayerAi {
             let player_email = self.get_player_email()?;
             if player_email != new_email {
                 return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-                    format!("PlayerAi::set_player_email() Error: New Email didn't integrate properly")
+                    format!("PlayerAiLocal::set_player_email() Error: New Email didn't integrate properly")
                 ));
             }
             return Ok(());
         }
         return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-            format!("PlayerAi::set_player_email() Error: New Email matches existing email")
+            format!("PlayerAiLocal::set_player_email() Error: New Email matches existing email")
         ));
     }
 
@@ -87,13 +91,13 @@ impl Player for PlayerAi {
             let player_id = self.get_player_id()?;
             if player_id != &new_id {
                 return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-                    format!("PlayerAi::set_player_id() Error: New id didn't integrate properly")
+                    format!("PlayerAiLocal::set_player_id() Error: New id didn't integrate properly")
                 ));
             }
             return Ok(());
         }
         return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-            format!("PlayerAi::set_player_id() Error: New id matches existing id")
+            format!("PlayerAiLocal::set_player_id() Error: New id matches existing id")
         ));
     }
 
@@ -105,13 +109,121 @@ impl Player for PlayerAi {
             let player_username = self.get_player_username()?;
             if player_username != &new_username {
                 return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-                    format!("PlayerAi::set_player_username() Error: New username didn't integrate properly")
+                    format!("PlayerAiLocal::set_player_username() Error: New username didn't integrate properly")
                 ));
             }
             return Ok(());
         }
         return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-            format!("PlayerAi::set_player_username() Error: New username matches existing username")
+            format!("PlayerAiLocal::set_player_username() Error: New username matches existing username")
+        ));
+    }
+}
+
+// --------------------------------------- //
+
+impl Player for PlayerAiRemote {
+    fn new(player_email: Option<String>, player_username: Option<String>, player_uuid: Option<Uuid>, player_type: PlayerType) -> Self {
+        PlayerAiRemote {
+            player_email: player_email.map(|email| email),
+            player_type: player_type,
+            player_username: player_username.map(|username| username), 
+            player_uuid: player_uuid.unwrap_or_else(|| Uuid::now_v7()),
+        }
+    }
+
+    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
+        let mut clone: PlayerAiRemote = self.clone();
+        clone.player_uuid = Uuid::now_v7();
+        if clone.player_uuid == self.player_uuid {
+            return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                format!("PlayerAiRemote::clone_with_new_id() Error: New Uuid didn't integrate properly")
+            ))}
+        let secured_clone: Arc<Mutex<PlayerAiRemote>> = Arc::new(Mutex::new(clone));
+        Ok(secured_clone)
+    }
+
+    fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler> {
+        match &self.player_email {
+            Some(player_email) => Ok(player_email),
+            None => Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                format!("PlayerAiRemote::get_player_email() Error: Missing Player Email")
+            )),
+        }
+    }
+
+    fn get_player_id(&self) -> Result<&Uuid, ErrorTypePlayerHandler> {
+        match &self.player_uuid {
+            uuid => Ok(uuid),
+        }
+    }
+
+    fn get_player_type(&self) -> Result<&PlayerType, ErrorTypePlayerHandler> {
+        match &self.player_type {
+            player_type => Ok(player_type),
+        }
+    }
+
+    fn get_player_username(&self) -> Result<&String, ErrorTypePlayerHandler> {
+        match &self.player_username {
+            Some(player_username) => Ok(player_username),
+            None => Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                format!("PlayerAiRemote::get_player_username() Error: Missing Player User Name")
+            )),
+        }
+    }
+
+    fn set_player_email(&mut self, new_email: &str) -> Result<(), ErrorTypePlayerHandler> {
+        let email = new_email.to_string();
+        let player_email = self.get_player_email()?;
+        if player_email != &email {
+            self.player_email = Some(email);
+            let player_email = self.get_player_email()?;
+            if player_email != new_email {
+                return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                    format!("PlayerAiRemote::set_player_email() Error: New Email didn't integrate properly")
+                ));
+            }
+            return Ok(());
+        }
+        return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+            format!("PlayerAiRemote::set_player_email() Error: New Email matches existing email")
+        ));
+    }
+
+    fn set_player_id(&mut self, new_id: Uuid) -> Result<(), ErrorTypePlayerHandler> {
+        let id = new_id.to_owned();
+        let player_id = self.get_player_id()?;
+        if player_id != &id {
+            self.player_uuid = id;
+            let player_id = self.get_player_id()?;
+            if player_id != &new_id {
+                return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                    format!("PlayerAiRemote::set_player_id() Error: New id didn't integrate properly")
+                ));
+            }
+            return Ok(());
+        }
+        return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+            format!("PlayerAiRemote::set_player_id() Error: New id matches existing id")
+        ));
+    }
+
+    fn set_player_username(&mut self, new_username: &str) -> Result<(), ErrorTypePlayerHandler> {
+        let username = new_username.to_owned();
+        let player_username = self.get_player_username()?;
+        if player_username != &username {
+            self.player_username = Some(username);
+            let player_username = self.get_player_username()?;
+            if player_username != &new_username {
+                return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+                    format!("PlayerAiRemote::set_player_username() Error: New username didn't integrate properly")
+                ));
+            }
+            return Ok(());
+        }
+        return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
+            format!("PlayerAiRemote::set_player_username() Error: New username matches existing username")
         ));
     }
 }

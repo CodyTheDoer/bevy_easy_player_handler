@@ -157,91 +157,121 @@ pub fn on_player_component_spawned(
         println!("Step 6 [ on_player_component_spawned ]");
         let mut user_uuid: Option<Uuid> = None;
         println!("Step 7 [ on_player_component_spawned ]");
+        let mut player_type: Option<PlayerType> = None;
+        println!("Step 8 [ on_player_component_spawned ]");
         for (entity, player) in entity_player_query.iter() {
-            println!("Step 8 [ on_player_component_spawned ]");
+            println!("Step 9 [ on_player_component_spawned ]");
             if &target == &entity {
-                println!("Step 9 [ on_player_component_spawned ]");
-                let player_data: Arc<Mutex<dyn Player + Send>> = player.player.clone();
                 println!("Step 10 [ on_player_component_spawned ]");
-                let player_mutex = player_data.lock().unwrap();
+                let player_data: Arc<Mutex<dyn Player + Send>> = player.player.clone();
                 println!("Step 11 [ on_player_component_spawned ]");
+                let player_mutex = player_data.lock().unwrap();
+
+                println!("Step 12 [ on_player_component_spawned ]");
                 let player_username = match player_mutex.get_player_username() {
                     Ok(email) => email.to_owned(),
                     Err(_) => {
                         println!("Error 2 [ on_player_component_spawned ]");
-                        warn!("on_player_component_spawned -> match player_data.get_player_username Failed: Spawning Failed UserName");
+                        warn!("on_player_component_spawned -> match player_mutex.get_player_username Failed: Spawning Failed UserName");
                         String::from("Username Fetch Failed")
                     },
                 };
-                println!("Step 12 [ on_player_component_spawned ]");
+                println!("Step 13 [ on_player_component_spawned ]");
                 username = Some(player_username);
+
+                println!("Step 14 [ on_player_component_spawned ]");
                 let player_uuid = match player_mutex.get_player_id() {
                     Ok(uuid) => uuid.to_owned(),
                     Err(_) => {
                         println!("Error 3 [ on_player_component_spawned ]");
-                        warn!("on_player_component_spawned -> player_data.get_player_id Failed: Spawning random Uuid");
+                        warn!("on_player_component_spawned -> match player_mutex.get_player_id Failed: Spawning random Uuid");
                         Uuid::now_v7()
                     },
                 };
-                println!("Step 13 [ on_player_component_spawned ]");
+                println!("Step 15 [ on_player_component_spawned ]");
                 user_uuid = Some(player_uuid);
-                println!("Step 14 [ on_player_component_spawned ]");
+
+                println!("Step 16 [ on_player_component_spawned ]");
+                let p_type = match player_mutex.get_player_type() {
+                    Ok(player_type) => player_type.to_owned(),
+                    Err(_) => {
+                        println!("Error 4 [ on_player_component_spawned ]");
+                        warn!("on_player_component_spawned -> match player_mutex.get_player_type Failed: Spawning random Uuid");
+                        PlayerType::PlayerLocal
+                    },
+                };
+                println!("Step 17 [ on_player_component_spawned ]");
+                player_type = Some(p_type);
+
+                println!("Step 18 [ on_player_component_spawned ]");
                 drop(player_mutex);
 
-                println!("Step 15 [ on_player_component_spawned ]");
+                println!("Step 19 [ on_player_component_spawned ]");
                 let map_entry_exists = match party.verify_player_exists_player_map(&player_uuid) {
                     Ok(status) => status,
                     Err(e) => {
-                        println!("Error 4 [ on_player_component_spawned ]");
+                        println!("Error 5 [ on_player_component_spawned ]");
                         warn!("Failed: on_player_component_spawned -> match party.players_add_player Error: [{:?}]", e);
                         false
                     },
                 };
-                println!("Step 16 [ on_player_component_spawned ]");
+                println!("Step 20 [ on_player_component_spawned ]");
                 if !map_entry_exists {
-                    println!("Step 17 [ on_player_component_spawned ]");
+                    println!("Step 21 [ on_player_component_spawned ]");
                     let party_size = party.player_map.len();
-                    println!("Step 18 [ on_player_component_spawned ]");
+                    println!("Step 22 [ on_player_component_spawned ]");
                     let party_size_plus_one = party_size + 1;
-                    println!("Step 19 [ on_player_component_spawned ]");
+                    println!("Step 22 [ on_player_component_spawned ]");
                     party.player_map.insert(party_size_plus_one, player_uuid);
                 }
             }
         }
 
-        println!("Step 20 [ on_player_component_spawned ]");
+        println!("Step 23 [ on_player_component_spawned ]");
         if username.is_none() {
-            println!("Error 5 [ on_player_component_spawned ]");
+            println!("Error 6 [ on_player_component_spawned ]");
+            warn!("Failed: on_player_component_spawned -> username.is_none()");
+        }
+
+        println!("Step 24 [ on_player_component_spawned ]");
+        if player_type.is_none() {
+            println!("Error 7 [ on_player_component_spawned ]");
+            warn!("Failed: on_player_component_spawned -> username.is_none()");
+        }
+
+        println!("Step 25 [ on_player_component_spawned ]");
+        if user_uuid.is_none() {
+            println!("Error 8 [ on_player_component_spawned ]");
             warn!("Failed: on_player_component_spawned -> username.is_none()");
         }
 
         // Get the new party size
-        println!("Step 21 [ on_player_component_spawned ]");
+        println!("Step 26 [ on_player_component_spawned ]");
         let party_size = match party.get_player_count_party(&player_query) {
             Ok(usize) => usize,
             Err(e) => {
-                println!("Error 6 [ on_player_component_spawned ]");
+                println!("Error 9 [ on_player_component_spawned ]");
                 warn!("Failed: on_player_component_spawned -> match party.get_player_count_party Error: [{:?}]", e);
                 0
             },
         };
-        println!("Step 22 [ pipeline_db_and_party_add_new_synced_player_local ]");
+        println!("Step 27 [ on_player_component_spawned ]");
         match party.set_active_player_index(party_size, &player_query) {
             Ok(status) => status,
             Err(e) => {
-                println!("Error 7 [ on_player_component_spawned ]");
-                warn!("Failed: on_player_component_spawned -> match party.get_player_count_party Error: [{:?}]", e);
+                println!("Error 10 [ on_player_component_spawned ]");
+                warn!("Failed: on_player_component_spawned -> match party.set_active_player_index Error: [{:?}]", e);
                 ()
             },
         };
-        println!("Step 23 [ pipeline_db_and_party_add_new_synced_player_local ]");
+        println!("Step 28 [ on_player_component_spawned ]");
         let username = username.unwrap(); 
-        println!("Step 24 [ on_player_component_spawned ]");
-        match phi.action_insert_player_record(&db, &user_uuid.unwrap(), Some(&String::from("PlayerLocal")), Some(&username), PlayerType::PlayerLocal) {
+        println!("Step 29 [ on_player_component_spawned ]");
+        match phi.action_insert_player_record(&db, &user_uuid.unwrap(), Some(&username), Some(&username), player_type.unwrap()) {
             Ok(status) => status,
             Err(e) => {
-                println!("Error 8 [ on_player_component_spawned ]");
-                warn!("Failed: on_player_component_spawned -> match party.get_player_count_party Error: [{:?}]", e);
+                println!("Error 11 [ on_player_component_spawned ]");
+                warn!("Failed: on_player_component_spawned -> match phi.action_insert_player_record Error: [{:?}]", e);
             },
         };
         println!("Success [ pipeline_db_and_party_add_new_synced_player_local ]");
@@ -294,7 +324,15 @@ pub enum PlayerType {
 }
 
 #[derive(Clone, Component, Debug, Resource)]
-pub struct PlayerAi {
+pub struct PlayerAiLocal {
+    player_email: Option<String>,
+    player_uuid: Uuid,
+    player_type: PlayerType,
+    player_username: Option<String>,
+}
+
+#[derive(Clone, Component, Debug, Resource)]
+pub struct PlayerAiRemote {
     player_email: Option<String>,
     player_uuid: Uuid,
     player_type: PlayerType,
