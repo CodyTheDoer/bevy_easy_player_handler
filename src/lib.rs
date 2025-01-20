@@ -275,7 +275,6 @@ pub struct Party {
 
 pub trait Player { //  ->  
     fn new(player_email: Option<String>, player_username: Option<String>, player_uuid: Option<Uuid>, player_type: PlayerType) -> Self where Self: Sized;
-    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler>;
     fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler>;
     fn get_player_id(&self) -> Result<&Uuid, ErrorTypePlayerHandler>;
     fn get_player_type(&self) -> Result<&PlayerType, ErrorTypePlayerHandler>;

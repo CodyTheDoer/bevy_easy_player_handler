@@ -9,9 +9,6 @@ use crate::{
 };
 use bevy_easy_shared_definitions::ErrorTypePlayerHandler;
 
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use uuid::Uuid;
 
 impl Player for PlayerAiLocal {
@@ -22,17 +19,6 @@ impl Player for PlayerAiLocal {
             player_username: player_username.map(|username| username), 
             player_uuid: player_uuid.unwrap_or_else(|| Uuid::now_v7()),
         }
-    }
-
-    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
-        let mut clone: PlayerAiLocal = self.clone();
-        clone.player_uuid = Uuid::now_v7();
-        if clone.player_uuid == self.player_uuid {
-            return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-                format!("PlayerAiLocal::clone_with_new_id() Error: New Uuid didn't integrate properly")
-            ))}
-        let secured_clone: Arc<Mutex<PlayerAiLocal>> = Arc::new(Mutex::new(clone));
-        Ok(secured_clone)
     }
 
     fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler> {
@@ -132,17 +118,6 @@ impl Player for PlayerAiRemote {
         }
     }
 
-    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
-        let mut clone: PlayerAiRemote = self.clone();
-        clone.player_uuid = Uuid::now_v7();
-        if clone.player_uuid == self.player_uuid {
-            return Err(ErrorTypePlayerHandler::PlayerAiCallFailed(
-                format!("PlayerAiRemote::clone_with_new_id() Error: New Uuid didn't integrate properly")
-            ))}
-        let secured_clone: Arc<Mutex<PlayerAiRemote>> = Arc::new(Mutex::new(clone));
-        Ok(secured_clone)
-    }
-
     fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler> {
         match &self.player_email {
             Some(player_email) => Ok(player_email),
@@ -240,17 +215,6 @@ impl Player for PlayerLocal {
         }
     }
 
-    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
-        let mut clone: PlayerLocal = self.clone();
-        clone.player_uuid = Uuid::now_v7();
-        if clone.player_uuid == self.player_uuid {
-            return Err(ErrorTypePlayerHandler::PlayerLocalCallFailed(
-                format!("PlayerLocal::clone_with_new_id() Error: New Uuid didn't integrate properly")
-            ))}
-        let secured_clone: Arc<Mutex<PlayerLocal>> = Arc::new(Mutex::new(clone));
-        Ok(secured_clone)
-    }
-
     fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler> {
         match &self.player_email {
             Some(player_email) => Ok(player_email),
@@ -344,17 +308,6 @@ impl Player for PlayerMain {
         }
     }
 
-    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
-        let mut clone: PlayerMain = self.clone();
-        clone.player_uuid = Uuid::now_v7();
-        if clone.player_uuid == self.player_uuid {
-            return Err(ErrorTypePlayerHandler::PlayerMainCallFailed(
-                format!("PlayerMain::clone_with_new_id() Error: New Uuid didn't integrate properly")
-            ))}
-        let secured_clone: Arc<Mutex<PlayerMain>> = Arc::new(Mutex::new(clone));
-        Ok(secured_clone)
-    }
-
     fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler> {
         match &self.player_email {
             Some(player_email) => Ok(player_email),
@@ -446,17 +399,6 @@ impl Player for PlayerRemote {
             player_username: player_username.map(|username| username), 
             player_uuid: player_uuid.unwrap_or_else(|| Uuid::now_v7()),
         }
-    }
-
-    fn clone_with_new_id(&self) -> Result<Arc<Mutex<dyn Player + Send>>, ErrorTypePlayerHandler> {
-        let mut clone: PlayerRemote = self.clone();
-        clone.player_uuid = Uuid::now_v7();
-        if clone.player_uuid == self.player_uuid {
-            return Err(ErrorTypePlayerHandler::PlayerRemoteCallFailed(
-                format!("PlayerRemote::clone_with_new_id() Error: New Uuid didn't integrate properly")
-            ))}
-        let secured_clone: Arc<Mutex<PlayerRemote>> = Arc::new(Mutex::new(clone));
-        Ok(secured_clone)
     }
 
     fn get_player_email(&self) -> Result<&String, ErrorTypePlayerHandler> {
