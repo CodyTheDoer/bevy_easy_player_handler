@@ -118,37 +118,29 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
         // Add the startup protocol system
         app.add_systems(Startup, PlayerHandlerInterface::start_up_protocol);
         app.add_systems(Update, on_player_component_spawned);
+        app.add_systems(Update, sync_plugin_party_main_player_uuid);
         app.add_systems(Update, PlayerHandlerInterface::start_up_protocol_finish.run_if(run_once()));
-        app.add_systems(Update, on_player_component_despawned);
     }
 }
 
-// System to trigger when PlayerComponent is despawned
-pub fn on_player_component_despawned(
-    // mut party: ResMut<Party>,
-    mut removals: RemovedComponents<PlayerComponent>,
-    // entity_player_query: Query<(Entity, &PlayerComponent)>,
+pub fn sync_plugin_party_main_player_uuid(
+    mut party: ResMut<Party>,
+    plugin: Res<BevyEasyPlayerHandlerPlugin>
 ) {
-    // let mut player_entity: Option<Entity> = None;
-    for entity in removals.read() {
-        println!("Player Component Entity {:?} was removed.", entity);
-        // player_entity = Some(entity);
-    }
-    // if player_entity.is_none() {
-    //     return;
-    // }
-    
-    // for (entity, player) in entity_player_query.iter() {
-    //     println!("Player Component Entity {:?} query... Do any match?", entity);
-    //     if player_entity.unwrap() == entity {
-    //         let player_mutex = player.player.lock();
-    //         let player = player_mutex.expect("on_player_component_despawned -> player.player.lock() Mutex retreival failed");
-    //         let target_uuid = player.get_player_id().expect("on_player_component_despawned -> player.get_player_id() failed");
-    //         let player_id = target_uuid.clone();
-    //         drop(player);
-    //         party.remove_player_from_player_map(&player_id).expect("on_player_component_despawned -> self.remove_player_from_player_map(player_id) Failed");
-    //     }
-    // }
+    let new_uuid = match plugin.get_main_player_uuid() {
+        Ok(uuid) => uuid.unwrap().to_owned(),
+        Err(e) => {
+            warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid failed... [{:?}]", e); 
+            match party.get_main_player_uuid() {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid -> match party.get_main_player_uuid failed... [{:?}]", e); 
+                    Uuid::now_v7()
+                },
+            }
+        }
+    };
+    party.main_player_uuid = Some(new_uuid);
 }
 
 // System to trigger when PlayerComponent is spawned
@@ -321,6 +313,7 @@ pub struct DBPlayer {
 #[derive(Resource)]
 pub struct Party {
     pub active_player: usize,
+    pub main_player_uuid: Option<Uuid>,
     pub player_map: HashMap<usize, Uuid>,
 }
 

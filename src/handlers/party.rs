@@ -44,9 +44,11 @@ macro_rules! player_query_get_player_lock {
 impl Party {
     pub fn new() -> Self {
         let active_player: usize = 1;
+        let main_player_uuid: Option<Uuid> = None;
         let player_map: HashMap<usize, Uuid> = HashMap::new();
         Party {
             active_player,
+            main_player_uuid,
             player_map,
         } 
     }
@@ -721,7 +723,7 @@ impl Party {
         &mut self,
         commands: &mut Commands,
         entity_player_query: &Query<(Entity, &PlayerComponent)>,
-        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
         target_player: &Uuid,
     ) -> Result<(), ErrorTypePlayerHandler> {
         let main_player = plugin.get_main_player_uuid()?.unwrap();
@@ -748,7 +750,7 @@ impl Party {
 
     pub fn player_map_remove_player(
         &mut self,
-        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
         target_player: &Uuid,
     ) -> Result<(), ErrorTypePlayerHandler> {
         // Step 1: Find the key to remove using an immutable borrow
@@ -773,9 +775,65 @@ impl Party {
         Ok(())
     }
 
+    pub fn get_main_player_uuid(
+        &self,
+    ) -> Result<Uuid, ErrorTypePlayerHandler> {
+        let result = self.main_player_uuid;
+        if result.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("get_main_player_uuid failed... if result.is_none()")))
+        }
+        Ok(result.unwrap())
+    }
+
+    pub fn player_map_and_component_remove_all_players_besides_main(
+        &mut self,
+        commands: &mut Commands,
+        entity_player_query: &Query<(Entity, &PlayerComponent)>, 
+        player_query: &Query<&PlayerComponent>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        self.set_active_player_index(1, player_query)?;
+        let main_player_id = self.get_main_player_uuid()?;
+        // let main_player_id = main_player_id.expect("main_player_id unwrap failed");
+        for (entity, player) in entity_player_query.iter() {
+            let player_mutex = match player.player.lock() {
+                Ok(mutex) => mutex,
+                Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("player_map_and_component_remove_all_players failed: [{:?}]", e)))
+            };
+            let player_id = player_mutex.get_player_id()?;
+            if player_id != &main_player_id {
+                commands.entity(entity).despawn_recursive();    
+                self.player_map_remove_player(plugin, player_id)?;            
+            }
+            drop(player_mutex);
+        }
+        Ok(())
+    }
+
+    pub fn player_map_and_component_remove_all_players(
+        &mut self,
+        commands: &mut Commands,
+        entity_player_query: &Query<(Entity, &PlayerComponent)>, 
+        player_query: &Query<&PlayerComponent>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        self.set_active_player_index(1, player_query)?;
+        for (entity, player) in entity_player_query.iter() {
+            let player_mutex = match player.player.lock() {
+                Ok(mutex) => mutex,
+                Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("player_map_and_component_remove_all_players failed: [{:?}]", e)))
+            };
+            let player_id = player_mutex.get_player_id()?;
+            self.player_map_remove_player(plugin, player_id)?;
+            commands.entity(entity).despawn_recursive();                
+            drop(player_mutex);
+        }
+        Ok(())
+    }
+
     pub fn player_map_check_for_players_and_collapse_missing(
         &mut self,
-        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
     ) -> Result<(), ErrorTypePlayerHandler> {
         println!("Init [ player_map_check_for_players_and_collapse_missing ]");
         println!("Step 1 [ player_map_check_for_players_and_collapse_missing ]");

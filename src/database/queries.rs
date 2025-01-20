@@ -16,7 +16,7 @@ use crate::{
 };
 
 impl PlayerHandlerInterface {    
-    pub fn query_count_existing_players(
+    pub fn query_db_count_existing_players(
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<i32, ErrorTypePlayerHandler> {
@@ -41,7 +41,7 @@ impl PlayerHandlerInterface {
         Ok(count)
     }
 
-    pub fn query_existing_players(
+    pub fn query_db_existing_players(
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<Vec<DBPlayer>, ErrorTypePlayerHandler> {    
@@ -77,7 +77,7 @@ impl PlayerHandlerInterface {
         Ok(players)
     }
 
-    pub fn query_main_player(
+    pub fn query_db_main_player(
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<DBPlayer, ErrorTypePlayerHandler> {    
@@ -137,7 +137,7 @@ impl PlayerHandlerInterface {
         println!("Step: 3 [ query_party_and_db_main_player_synced ]");
         if party_size > 0 {    
             println!("Step: 4 [ query_party_and_db_main_player_synced ]");
-            let database_main_player = self.query_main_player(&db)?;
+            let database_main_player = self.query_db_main_player(&db)?;
             println!("Step: 5 [ query_party_and_db_main_player_synced ]");
             let party_main_player_uuid = party.clone_main_player_uuid(player_query)?;
             println!("Step: 6 [ query_party_and_db_main_player_synced ]");
@@ -158,7 +158,7 @@ impl PlayerHandlerInterface {
         Ok(result_synced)
     }
     
-    pub fn query_table_player_exists(
+    pub fn query_db_table_player_exists(
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<bool, ErrorTypePlayerHandler> {
@@ -196,7 +196,7 @@ impl PlayerHandlerInterface {
         Ok(does_exist)
     }
     
-    pub fn query_test_ref_and_main_player_exists(
+    pub fn query_db_test_ref_and_main_player_exists(
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<bool, ErrorTypePlayerHandler> {

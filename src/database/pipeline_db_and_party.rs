@@ -27,6 +27,7 @@ use crate::{
     PlayerComponent, 
     PlayerHandlerInterface, 
     PlayerLocal, 
+    PlayerMain,
     PlayerType,
     PlayerRemote,
 };
@@ -138,7 +139,7 @@ impl PlayerHandlerInterface {
         party: &mut ResMut<Party>,
         player_query: &Query<&PlayerComponent>,
         player_uuid: &Uuid,
-        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
     ) -> Result<(), ErrorTypePlayerHandler> {
         println!("Init: pipeline_db_and_party_action_remove_player:");
         println!("active_player_get_index: Before: pipeline_db_and_party_action_remove_player [{}]", party.get_active_player_index()?);
@@ -200,7 +201,7 @@ impl PlayerHandlerInterface {
         existing_uuid: &Uuid,
         party: &mut ResMut<Party>,
         player_query: &Query<&PlayerComponent>,
-        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
     ) -> Result<(), ErrorTypePlayerHandler> {
         println!("Init: pipeline_db_and_party_add_player_to_party_from_db");
         dotenv().ok();
@@ -251,7 +252,7 @@ impl PlayerHandlerInterface {
 
         println!("Step 6 [ pipeline_db_and_party_add_player_to_party_from_db ]");
         // query existing players and search for provided uuid
-        let existing_players_vec = self.query_existing_players(&db)?;
+        let existing_players_vec = self.query_db_existing_players(&db)?;
 
         println!("Step 7 [ pipeline_db_and_party_add_player_to_party_from_db ]");
         let mut player_match = false;
@@ -282,17 +283,6 @@ impl PlayerHandlerInterface {
                         let packaged_player: Arc<Mutex<dyn Player + Send>> = Arc::new(Mutex::new(new_player));
                         packaged_player
                     },
-                    "PlayerAiRemote" => {
-                        println!("Step 13: Match [ PlayerAi: Remote ] [ pipeline_db_and_party_add_player_to_party_from_db ]");
-                        let new_player = PlayerAiRemote::new(
-                            None, 
-                            Some(player_username.clone()), 
-                            Some(*existing_uuid),
-                            PlayerType::PlayerAiRemote,
-                        );
-                        let packaged_player: Arc<Mutex<dyn Player + Send>> = Arc::new(Mutex::new(new_player));
-                        packaged_player
-                    },
                     "PlayerLocal" => {
                         println!("Step 13: Match [ PlayerLocal ] [ pipeline_db_and_party_add_player_to_party_from_db ]");
                         let new_player = PlayerLocal::new(
@@ -304,19 +294,8 @@ impl PlayerHandlerInterface {
                         let packaged_player: Arc<Mutex<dyn Player + Send>> = Arc::new(Mutex::new(new_player));
                         packaged_player
                     },
-                    "PlayerRemote" => {
-                        println!("Step 13: Match [ PlayerRemote ] [ pipeline_db_and_party_add_player_to_party_from_db ]");
-                        let new_player = PlayerRemote::new(
-                            None, 
-                            Some(player_username.clone()), 
-                            Some(*existing_uuid),
-                            PlayerType::PlayerRemote,
-                        );
-                        let packaged_player: Arc<Mutex<dyn Player + Send>> = Arc::new(Mutex::new(new_player));
-                        packaged_player
-                    },
                     &_ => {
-                        println!("Step 13: Match [ PlayerRemote ] [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                        println!("Step 13: Match [ PlayerLocal ] [ pipeline_db_and_party_add_player_to_party_from_db ]");
                         let new_player = PlayerRemote::new(
                             None, 
                             Some(player_username.clone()), 
@@ -346,63 +325,171 @@ impl PlayerHandlerInterface {
         Ok(())
     }
 
-    pub fn pipeline_db_and_party_init_test_ref_and_main_player(
+    pub fn pipeline_db_and_party_add_main_player_from_db_to_party(
+        &self,
+        commands: &mut Commands,
+        db: &Res<DatabaseConnection>,
+        existing_uuid: &Uuid,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: pipeline_db_and_party_add_player_to_party_from_db");
+        dotenv().ok();
+
+        println!("Step 1 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        // grab the test ref uuid from .env
+        let test_ref_uuid_string = match env::var("TEST_REF_PLAYER_UUID") {
+            Ok(value) => value,
+            Err(VarError::NotPresent) => {
+                println!("Error 1 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                return Err(ErrorTypePlayerHandler::VarErrorNotPresent)
+            },
+            Err(VarError::NotUnicode(err)) => {
+                println!("Error 2 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                let err_string = err.into_string().unwrap();
+                return Err(ErrorTypePlayerHandler::VarErrorNotUnicode(err_string))
+            },
+        };
+
+        println!("Step 2 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        let test_ref_uuid = match Uuid::try_parse(test_ref_uuid_string.as_str()) {
+            Ok(uuid) => uuid,
+            Err(e) =>{
+                println!("Error 3 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                return Err(ErrorTypePlayerHandler::UuidParsingFailed(e.to_string()))},
+        };
+
+        println!("Step 3 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        if test_ref_uuid == *existing_uuid {
+            println!("Error 4: [ pipeline_db_and_party_add_player_to_party_from_db ]");
+            return Err(ErrorTypePlayerHandler::AddPlayerFromDbToPartyFailed(format!("Player: [{}] is the test reference, not a valid player", &existing_uuid)))
+        }
+
+        println!("Step 6 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        // query existing players and search for provided uuid
+        let existing_players_vec = self.query_db_existing_players(&db)?;
+
+        println!("Step 7 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        let mut player_match = false;
+        println!("Step 8 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        let target_uuid_string_ref = &existing_uuid.to_string();
+        println!("target_uuid_string_ref: [ {} ]", target_uuid_string_ref);
+        println!("Step 9 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        for player in existing_players_vec {
+            println!("Step 10 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+            let player_uuid_string_ref = player.get_uuid_string();
+            println!("player_uuid_string_ref: [ {} ]", player_uuid_string_ref);
+            println!("Step 11 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+            if player_uuid_string_ref == target_uuid_string_ref {
+                // Init a new local player and add into the party
+                println!("Step 12 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                let player_username = player.get_username_string();
+                println!("player_username: [ {} ]", player_username);
+                println!("Step 13 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                let packaged_player: Arc<Mutex<dyn Player + Send>> = Arc::new(Mutex::new(PlayerMain::new(
+                    None, 
+                    Some(player_username.clone()), 
+                    Some(*existing_uuid),
+                    PlayerType::PlayerMain,
+                )));
+                println!("Step 14 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                commands.spawn(PlayerComponent{
+                    player: packaged_player,
+                });
+                println!("Step 15 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+                player_match = true;
+            }
+        }
+
+        println!("Step 16 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        if !player_match {
+            println!("Error 6 [ pipeline_db_and_party_add_player_to_party_from_db ]");
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("pipeline_db_and_party_add_player_from_db_to_party: Failed")))
+        }
+
+        println!("Success [ pipeline_db_and_party_add_player_to_party_from_db ]");
+        Ok(())
+    }
+
+    pub fn pipeline_db_and_party_remove_all_build_test_ref_and_init_new_main_player(
         &self,
         db: &Res<DatabaseConnection>,
+        mut commands: &mut Commands,
+        entity_player_query: &Query<(Entity, &PlayerComponent)>, 
         party: &mut ResMut<Party>,
         player_query: &Query<&PlayerComponent>,
-        plugin: &ResMut<BevyEasyPlayerHandlerPlugin>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
     ) -> Result<(), ErrorTypePlayerHandler> {
-        println!("Init: pipeline_db_and_party_init_test_ref_and_main_player:");
+        println!("Init: pipeline_db_and_party_remove_all_build_test_ref_and_init_main_player:");
+    
+        let count = self.query_db_count_existing_players(&db)?;    
+        println!("Existing Player Count: [{}]", count);
 
-        println!("Step 1 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
         let test_ref_info = self.test_ref_info()?;
+
+        self.action_remove_all_player_records(&db)?;
+        party.player_map_and_component_remove_all_players(&mut commands, entity_player_query, player_query, plugin)?;
     
-        println!("Step 2 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
+        // Build the test reference player in the DB
+        println!("Init DB Record: Testing Reference");
+        self.action_insert_player_record(&db, &test_ref_info.0, Some(&test_ref_info.1), Some(&test_ref_info.2), PlayerType::PlayerTestRef)?;    
+    
         let main_player_uuid = Uuid::now_v7();
-        println!("Step 3 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
+
+        // Build the main player
+        println!("Update Plugin Target: Main Player");
+        plugin.set_main_player_uuid(&main_player_uuid)?;
         let main_player_email = plugin.get_main_player_email()?;
-        println!("Step 4 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
+        let main_player_email = main_player_email.expect("main_player_email unwrap failed ");
         let main_player_username = plugin.get_main_player_username()?;
+        let main_player_username = main_player_username.expect("main_player_username unwrap failed ");
+
+        println!("Init DB Record: Main Player");
+        self.action_insert_player_record(&db, &main_player_uuid, Some(main_player_email), Some(main_player_username), PlayerType::PlayerMain)?;
+
+        println!("Build DB Record: Main Player");
+        self.pipeline_db_and_party_add_main_player_from_db_to_party(&mut commands, &db, &main_player_uuid)?;
+        // self.pipeline_db_and_party_add_player_from_db_to_party(&mut commands, &db, &main_player_uuid, party, player_query, plugin)?;
+        Ok(())
+    }
+
+    pub fn pipeline_db_and_party_startup_test_ref_and_init_main_player(
+        &self,
+        db: &Res<DatabaseConnection>,
+        mut commands: &mut Commands,
+        entity_player_query: &Query<(Entity, &PlayerComponent)>, 
+        party: &mut ResMut<Party>,
+        player_query: &Query<&PlayerComponent>,
+        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
+    ) -> Result<(), ErrorTypePlayerHandler> {
+        println!("Init: pipeline_db_and_party_remove_all_build_test_ref_and_init_main_player:");
     
-        println!("Step 5 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
-        // Check if there are any existing players in the database
-        let count = self.query_count_existing_players(&db)?;    
+        let count = self.query_db_count_existing_players(&db)?;    
         println!("Existing Player Count: [{}]", count);
 
-        println!("Step 6 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
-        if count == 1 { // Records: [Missing] Delete and start over
-            println!("Error: 1 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
+        if count <= 2 { // No non-recoverable/rebuildable records detected
+            let test_ref_info = self.test_ref_info()?;
+
             self.action_remove_all_player_records(&db)?;
-            println!("Single Player Count Detected: Records Scrubbed for fresh init");
-        }
+            party.player_map_and_component_remove_all_players(&mut commands, entity_player_query, player_query, plugin)?;
         
-        println!("Step 7 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
-        let count = self.query_count_existing_players(&db)?;
-        println!("Existing Player Count: [{}]", count);
-
-        println!("Step 8 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
-        if count == 0 {
             // Build the test reference player in the DB
-            println!("Step 9 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
             println!("Init DB Record: Testing Reference");
-            self.action_insert_player_record(&db, &test_ref_info.0, Some(&test_ref_info.1), Some(&test_ref_info.2), PlayerType::PlayerTestRef)?;    
-           
-            println!("Step 10 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
+            self.action_insert_player_record(&db, &test_ref_info.0, Some(&test_ref_info.1), Some(&test_ref_info.2), PlayerType::PlayerTestRef)?;
+        
+            let main_player_uuid = Uuid::now_v7();
+            let main_player_email = plugin.get_main_player_email()?;
+            let main_player_username = plugin.get_main_player_username()?;
+            
+            // Build the main player
             println!("Init DB Record: Main Player");
             self.action_insert_player_record(&db, &main_player_uuid, main_player_email, main_player_username, PlayerType::PlayerMain)?;
 
-        } else if count > 1 { // If a player already exists in local database, sync the ecs Uuid to match locally stored profile 
-            println!("Step 11 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
-            let players = self.query_existing_players(&db)?;
-    
-            println!("Step 12 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
+            self.pipeline_db_and_party_add_main_player_from_db_to_party(&mut commands, &db, &main_player_uuid)?;
+        } 
+        else if count > 2 { // If a player already exists in local database, sync the ecs Uuid to match locally stored profile 
+            let players = self.query_db_existing_players(&db)?;
             for (idx, player) in players.into_iter().enumerate() {
-                println!("Step 13 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
                 if idx == 0 {
-                    println!("Step 14 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
                     let player_id = player.uuid;
-                    println!("Step 15 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
                     let player_uuid = Uuid::try_parse(player_id.as_str())
                         .map_err(|e| {
                             println!("Error 2 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
@@ -411,23 +498,12 @@ impl PlayerHandlerInterface {
                         })?;
                     // party.player_set_player_id(0, player_uuid)?;
                     // party.set_active_player_uuid_player_map_and_component(player_query, player_uuid)?;
-                    println!("Step 16 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
                     party.init_main_player_uuid_player_map(player_query, player_uuid)?;
                 }
-                println!("Step 17 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
                 break;
             }
         }
-        
-        println!("Step 18 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
-        let count = self.query_count_existing_players(&db)?;
-        println!("Existing Player Count: [{}]", count);
-        
-        println!("Step 19 [ pipeline_db_and_party_init_test_ref_and_main_player ]");
-        if count > 1 {
-            return Ok(())
-        }
-        return Err(ErrorTypePlayerHandler::DBActionFailed(format!("[ pipeline_db_and_party_init_test_ref_and_main_player ] Less than two players in db...")))
+        Ok(())
     }
     
     pub fn pipeline_db_and_party_sync_main_player_uuids(
@@ -435,7 +511,7 @@ impl PlayerHandlerInterface {
         db: &Res<DatabaseConnection>,
         party: &mut ResMut<Party>,
         player_query: &Query<&PlayerComponent>,
-        plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>
+        mut plugin: ResMut<BevyEasyPlayerHandlerPlugin>
     ) -> Result<(), ErrorTypePlayerHandler> {
         println!("Init: pipeline_db_and_party_sync_main_player_uuids:");
         println!("Step: 1 [ pipeline_db_and_party_sync_main_player_uuids ]");
@@ -448,7 +524,7 @@ impl PlayerHandlerInterface {
         println!("Step: 3 [ pipeline_db_and_party_sync_main_player_uuids ]");
         let party_main_player_uuid = party_main_player_uuid.unwrap();
         println!("Step: 4 [ pipeline_db_and_party_sync_main_player_uuids ]");
-        let database_main_player = self.query_main_player(&db)?;
+        let database_main_player = self.query_db_main_player(&db)?;
         println!("Step: 5 [ pipeline_db_and_party_sync_main_player_uuids ]");
         let database_main_player_uuid = match Uuid::try_parse(database_main_player.uuid.as_str()) {
             Ok(uuid) => uuid,

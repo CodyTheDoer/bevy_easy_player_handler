@@ -31,7 +31,7 @@ impl PlayerHandlerInterface {
     ) {
         info!("BevyEasyPlayerHandler: [ Start Up Protocol ]");
     
-        let player_table_exists = phi.query_table_player_exists(&db).unwrap();
+        let player_table_exists = phi.query_db_table_player_exists(&db).unwrap();
     
         info!("Result [query_table_player_exists]: [{}]", player_table_exists);
     
@@ -57,7 +57,9 @@ impl PlayerHandlerInterface {
     }
 
     pub fn start_up_protocol_finish(
+        mut commands: Commands,
         db: Res<DatabaseConnection>,
+        entity_player_query: Query<(Entity, &PlayerComponent)>, 
         mut party: ResMut<Party>,
         phi: ResMut<PlayerHandlerInterface>,
         player_query: Query<&PlayerComponent>,
@@ -68,14 +70,14 @@ impl PlayerHandlerInterface {
         // ----- [ Vertify database test ref and main player exists ] ----- //
     
         println!("Step: 1 [ start_up_protocol_finish ]");
-        let players_test_ref_and_owner_exists = phi.query_test_ref_and_main_player_exists(&db).unwrap();
+        let players_test_ref_and_owner_exists = phi.query_db_test_ref_and_main_player_exists(&db).unwrap();
         
         info!("Result [query_test_ref_and_main_player_exists]: [{}]", players_test_ref_and_owner_exists);
     
         println!("Step: 2 [ start_up_protocol_finish ]");
         if !players_test_ref_and_owner_exists {
             println!("Step: 3 [ start_up_protocol_finish ]");
-            phi.pipeline_db_and_party_init_test_ref_and_main_player(&db, &mut party, &player_query, &plugin).unwrap();
+            phi.pipeline_db_and_party_startup_test_ref_and_init_main_player(&db, &mut commands, &entity_player_query, &mut party, &player_query, &mut plugin).unwrap();
         }
     
         // ----- [ Sync party and database main players uuid ] ----- //
@@ -98,7 +100,7 @@ impl PlayerHandlerInterface {
             info!("Result [player_map -> post insert]: {:?}", &party.player_map);
 
             println!("Step: 9 [ start_up_protocol_finish ]");
-            match phi.pipeline_db_and_party_sync_main_player_uuids(&db, &mut party, &player_query, &mut plugin) {
+            match phi.pipeline_db_and_party_sync_main_player_uuids(&db, &mut party, &player_query, plugin) {
                 Ok(sync) => sync,
                 Err(e) => {
                     warn!("start_up_protocol_finish -> pipeline_db_and_party_sync_main_player_uuids [ Failed ] Error: {:?}", e);
