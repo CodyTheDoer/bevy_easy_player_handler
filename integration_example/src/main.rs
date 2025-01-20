@@ -8,8 +8,8 @@ use bevy_easy_player_handler::{
 };
 
 use bevy_easy_shared_definitions::{
-    DatabaseConnection,
     ErrorTypePlayerHandler,
+    DatabaseConnection,
 };
 
 use bevy_easy_vec_ui::{
@@ -104,7 +104,6 @@ impl DisplayInts {
 
 #[derive(Debug)]
 pub enum ErrorType {
-    DataRetreivalFailed(String),
     DataUpdateFailed(String),
 }
 

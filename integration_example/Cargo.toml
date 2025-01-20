@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 bevy = { version = "0.14.2", features = ["mp3"] }
 bevy_easy_vec_ui = "0.1.0"
-bevy_easy_player_handler = { path  = "D:/bevy/donut/bevy_easy_player_handler" }
-bevy_easy_shared_definitions = { path  = "D:/bevy/donut/bevy_easy_shared_defintions" }
+bevy_easy_player_handler = { git = "https://github.com/CodyTheDoer/bevy_easy_player_handler" }
+bevy_easy_shared_definitions = { git = "https://github.com/CodyTheDoer/bevy_easy_shared_definitions" }
 dotenv = "0.15.0"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 uuid = { version = "1.11.0",  features = [ "v4",  "v7", "fast-rng", "macro-diagnostics" ] }
