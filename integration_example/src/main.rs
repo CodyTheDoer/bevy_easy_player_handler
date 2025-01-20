@@ -341,11 +341,7 @@ pub fn temp_interface(
                 Ok(()) => {},
                 Err(e) => warn!("Error: temp_interface -> di.set_db_target_int(0) Error:[{:?}]", e),
             };
-            // match dbi.action_remove_all_player_records(&db) {
-            //     Ok(()) => {},
-            //     Err(e) => warn!("Error: temp_interface -> action_remove_all_player_records Error:[{:?}]", e),
-            // };
-            match dbi.pipeline_db_and_party_remove_all_build_test_ref_and_init_new_main_player(&db, &mut commands, &entity_player_query, &mut party, &player_query, &mut plugin) {
+            match dbi.pipeline_db_and_party_remove_all_build_test_ref_and_init_new_main_player(&db, &mut commands, &entity_player_query, &mut party, &mut plugin) {
                 Ok(_) => {},
                 Err(e) => warn!("Error: temp_interface -> dbi.pipeline_db_and_party_reset_all_and_init_test_ref_and_main_player Error:[{:?}]", e),
             };
@@ -374,7 +370,7 @@ pub fn temp_interface(
     if keys.just_released(KeyCode::Numpad6) {
         info!("just_released: Numpad6");  
         {
-            match party.player_map_and_component_remove_all_players_besides_main(&mut commands, &entity_player_query, &player_query, &mut plugin) {
+            match party.player_map_and_component_remove_all_players_besides_main(&mut commands, &entity_player_query, &mut plugin) {
                 Ok(success) => success,
                 Err(e) => warn!("Error: temp_interface -> party.player_map_and_component_remove_all_players Error:[{:?}]", e),
             };
@@ -384,49 +380,45 @@ pub fn temp_interface(
     if keys.just_released(KeyCode::Numpad5) {
         info!("just_released: Numpad5"); 
         {
-            if db_player_vec.len() > 2 {
-                let db_target = &db_player_vec[db_target_idx as usize];
-                let db_target_uuid_str = db_target.get_uuid_string().as_str();
-                let db_target_uuid = Uuid::try_parse(db_target_uuid_str).unwrap();
-                let stored_id = &db_target_uuid;
-                
-                if db_target_idx == ( db_count - 1 ) { // Indexed to test against the future result that would be post action
-                    match di.set_db_target_int(db_target_idx - 1) {
-                        Ok(_) => {},
-                        Err(e) => warn!("Error: temp_interface -> set_db_target_int Error:[{:?}]", e),
-                    };
-                }
-                let party_idx = match party.get_active_player_index() {
-                    Ok(value) => value,
-                    Err(e) => {
-                        warn!("Error: temp_interface -> party.get_active_player_index() Error:[{:?}]", e);
-                        1
-                    },
-                };
-                let party_size = match party.get_player_count_party(&player_query) {
-                    Ok(value) => value,
-                    Err(e) => {
-                        warn!("Error: temp_interface -> party.get_active_player_index() Error:[{:?}]", e);
-                        1
-                    },
-                };
-                if party_idx == party_size && party_size > 1 {
-                    match party.set_active_player_index(party_idx - 1, &player_query) {
-                        Ok(value) => value,
-                        Err(e) => {
-                            warn!("Error: temp_interface -> party.get_active_player_index() Error:[{:?}]", e);
-                        },
-                    };
-                }
-                match dbi.pipeline_db_and_party_action_remove_player(&mut commands, &db, &entity_player_query, &mut party, &player_query, stored_id, &mut plugin) {
-                    // match dbi.pipeline_db_and_party_action_remove_player(&db, &mut party, &mut plugin, stored_id) {
+            let db_target = &db_player_vec[db_target_idx as usize];
+            let db_target_uuid_str = db_target.get_uuid_string().as_str();
+            let db_target_uuid = Uuid::try_parse(db_target_uuid_str).unwrap();
+            let stored_id = &db_target_uuid;
+            
+            if db_target_idx == ( db_count - 1 ) { // Indexed to test against the future result that would be post action
+                match di.set_db_target_int(db_target_idx - 1) {
                     Ok(_) => {},
-                    Err(e) => warn!("Error: temp_interface -> {} -> pipeline_db_and_party_action_remove_player [{:?}]", &db_target_uuid, e),
-                }
-                info!("Call [ pipeline_db_and_party_action_remove_player [{}] ]: Finished...", stored_id);
-            } else {
-                info!("Call [ pipeline_db_and_party_action_remove_player ]: Denied: Only TestRef and Main Exist...");
+                    Err(e) => warn!("Error: temp_interface -> set_db_target_int Error:[{:?}]", e),
+                };
             }
+            let party_idx = match party.get_active_player_index() {
+                Ok(value) => value,
+                Err(e) => {
+                    warn!("Error: temp_interface -> party.get_active_player_index() Error:[{:?}]", e);
+                    1
+                },
+            };
+            let party_size = match party.get_player_count_party(&player_query) {
+                Ok(value) => value,
+                Err(e) => {
+                    warn!("Error: temp_interface -> party.get_active_player_index() Error:[{:?}]", e);
+                    1
+                },
+            };
+            if party_idx == party_size && party_size > 1 {
+                match party.set_active_player_index(party_idx - 1) {
+                    Ok(value) => value,
+                    Err(e) => {
+                        warn!("Error: temp_interface -> party.get_active_player_index() Error:[{:?}]", e);
+                    },
+                };
+            }
+            match dbi.pipeline_db_and_party_action_remove_player(&mut commands, &db, &entity_player_query, &mut party, &player_query, stored_id, &mut plugin) {
+                // match dbi.pipeline_db_and_party_action_remove_player(&db, &mut party, &mut plugin, stored_id) {
+                Ok(_) => {},
+                Err(e) => warn!("Error: temp_interface -> {} -> pipeline_db_and_party_action_remove_player [{:?}]", &db_target_uuid, e),
+            }
+            info!("Call [ pipeline_db_and_party_action_remove_player [{}] ]: Finished...", stored_id);
         }
     };
 
@@ -453,7 +445,7 @@ pub fn temp_interface(
     if keys.just_released(KeyCode::Numpad2) &! ( keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight)){
         info!("just_released: Numpad2");  
         {
-            match dbi.pipeline_db_and_party_add_new_synced_player_local(&mut commands, &db, &mut party, &player_query, &plugin, "PlayerLocal") {
+            match dbi.pipeline_db_and_party_add_new_synced_player_local(&mut commands, &mut party, &player_query, &plugin, "PlayerLocal") {
                 Ok(()) => {},
                 Err(e) => warn!("Error: temp_interface -> pipeline_db_and_party_add_new_synced_player_local:  [{:?}]", e),
             };
@@ -464,7 +456,7 @@ pub fn temp_interface(
     if keys.just_released(KeyCode::Numpad2) && ( keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight)) {
         info!("just_released: Numpad2 + Shift");  
         {        
-            match dbi.pipeline_db_and_party_add_new_synced_player_ai_local(&mut commands, &db, &mut party, &player_query, &plugin, "PlayerAiLocal"){
+            match dbi.pipeline_db_and_party_add_new_synced_player_ai_local(&mut commands, &mut party, &player_query, &plugin, "PlayerAiLocal"){
                 Ok(()) => {},
                 Err(e) => warn!("Error: temp_interface -> pipeline_db_and_party_add_new_synced_player_ai_local:  [{:?}]", e),
             };
@@ -483,7 +475,7 @@ pub fn temp_interface(
                         return ()
                     },
                 };
-                match party.set_active_player_index(active_player_idx, &player_query) {
+                match party.set_active_player_index(active_player_idx) {
                     Ok(()) => (),
                     Err(e) => warn!("Error: temp_interface -> party.set_active_player_index() Error:[{:?}]", e),
                 };
@@ -496,7 +488,7 @@ pub fn temp_interface(
                     usize => usize.unwrap()
                 };
                 if player_idx == 0 {
-                    match party.set_active_player_index(1, &player_query) {
+                    match party.set_active_player_index(1) {
                         Ok(()) => (),
                         Err(e) => warn!("Error: temp_interface -> party.active_player_set Error:[{:?}]", e),
                     };
@@ -511,9 +503,9 @@ pub fn temp_interface(
     if keys.just_released(KeyCode::Numpad0) {
         info!("just_released: Numpad0");  
         if active_player > 1 {
-            let _ = party.set_active_player_index(active_player_idx, &player_query);
+            let _ = party.set_active_player_index(active_player_idx);
         } else {
-            let _ = party.set_active_player_index(party_count, &player_query);
+            let _ = party.set_active_player_index(party_count);
         }
         info!("Call [ party.active_player_set - 1 ]: Finished...");
     };
@@ -521,9 +513,9 @@ pub fn temp_interface(
     if keys.just_released(KeyCode::NumpadDecimal) {
         info!("just_released: NumpadDecimal");  
         if active_player < party_count {
-            let _ = party.set_active_player_index(active_player + 1, &player_query);
+            let _ = party.set_active_player_index(active_player + 1);
         } else {
-            let _ = party.set_active_player_index(1, &player_query);
+            let _ = party.set_active_player_index(1);
         }
         info!("Call [ party.active_player_set + 1 ]: Finished...");
     };

@@ -18,8 +18,6 @@ impl PlayerHandlerInterface {
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<i32, ErrorTypePlayerHandler> {
-        info!("Init: action_count_players_in_db:");
-        
         // Get and Lock the mutex to access the database connection
         let conn = db.get_connection();
         let conn = conn.lock();
@@ -39,8 +37,6 @@ impl PlayerHandlerInterface {
         )
         .map_err(|e| ErrorTypePlayerHandler::DBQueryFailed(format!("Player Count failed, Error: [{}]", e)))?;
 
-        info!("DB Players Count: [{:?}]", party_player_count_query);
-
         Ok(party_player_count_query)
     }
 
@@ -48,8 +44,6 @@ impl PlayerHandlerInterface {
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<(), ErrorTypePlayerHandler> {
-        info!("Init: action_table_player_init:");
-        
         // Get and Lock the mutex to access the database connection
         let conn = db.get_connection();
         let conn = conn.lock();
@@ -83,15 +77,9 @@ impl PlayerHandlerInterface {
         main_player_username: Option<&String>,
         player_type: PlayerType,
     ) -> Result<(), ErrorTypePlayerHandler> {
-        info!("Init: action_insert_player_record");
-        info!("Player [{}], UserName: [{:?}], Email: [{:?}], Player Type: [{:?}]", &main_player_uuid, &main_player_username, &main_player_email, &player_type);
-        
         // Get and Lock the mutex to access the database connection
-        println!("Step 1 [ action_insert_player_record ]");
         let conn = db.get_connection();
-        println!("Step 2 [ action_insert_player_record ]");
         let conn = conn.lock();
-        println!("Step 3 [ action_insert_player_record ]");
         let conn = match conn {
             Ok(conn) => conn,
             Err(_) => {
@@ -100,12 +88,7 @@ impl PlayerHandlerInterface {
                 return Err(ErrorTypePlayerHandler::DatabaseLockPoisoned);
             }
         };
-
-        println!("Step 4 [ action_insert_player_record ]");
         let insert_target = String::from(*main_player_uuid);
-
-        println!("Step 5 [ action_insert_player_record ]");
-        println!("INSERT INTO player_table [ {} {} {} ]", &insert_target, &main_player_email.unwrap(), &main_player_username.unwrap());
         conn.execute(
             "INSERT INTO player_table (uuid, email, username) VALUES (?1, ?2, ?3)",
             (insert_target, main_player_email, main_player_username),
@@ -118,7 +101,6 @@ impl PlayerHandlerInterface {
                 PlayerType::PlayerRemote => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Remote Local into 'player_table' failed Error: [{}]", e)),
                 PlayerType::PlayerTestRef => ErrorTypePlayerHandler::DBActionFailed(format!("Action Insert Record Player Test Reference Local into 'player_table' failed Error: [{}]", e)),
             })?;
-        println!("Success [ action_insert_player_record ]");
         Ok(())
     }
 
@@ -126,8 +108,6 @@ impl PlayerHandlerInterface {
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<(), ErrorTypePlayerHandler> {
-        info!("Init: action_remove_all_player_records:");
-        
         // Get and Lock the mutex to access the database connection
         let conn = db.get_connection();
         let conn = conn.lock();

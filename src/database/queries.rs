@@ -127,34 +127,21 @@ impl PlayerHandlerInterface {
         party: &mut ResMut<Party>,
         player_query: &Query<&PlayerComponent>,
     ) -> Result<bool, ErrorTypePlayerHandler> {
-        info!("Init: query_party_and_db_main_player_synced:");
-
-        println!("Step: 1 [ query_party_and_db_main_player_synced ]");
         let mut result_synced = false;
-        println!("Step: 2 [ query_party_and_db_main_player_synced ]");
         let party_size = party.get_player_count_party(player_query)?;
-        println!("party size: {}", party_size);
-        println!("Step: 3 [ query_party_and_db_main_player_synced ]");
         if party_size > 0 {    
-            println!("Step: 4 [ query_party_and_db_main_player_synced ]");
             let database_main_player = self.query_db_main_player(&db)?;
-            println!("Step: 5 [ query_party_and_db_main_player_synced ]");
             let party_main_player_uuid = party.clone_main_player_uuid(player_query)?;
-            println!("Step: 6 [ query_party_and_db_main_player_synced ]");
             let database_main_player_uuid = match Uuid::try_parse(database_main_player.uuid.as_str()) {
                 Ok(uuid) => uuid,
                 Err(e) => {
-                    warn!("[ Error ] query_party_and_db_main_player_synced -> Uuid::try_parse(database_main_player.uuid.as_str()): [{:?}]", e);
                     return Err(ErrorTypePlayerHandler::UuidParsingFailed(e.to_string()));
                 },
             };
-            println!("Step: 7 [ query_party_and_db_main_player_synced ]");
             if party_main_player_uuid == database_main_player_uuid {
-                println!("Step: 8 [ query_party_and_db_main_player_synced ]");
                 result_synced = true;
             };
         }    
-        println!("Step: 9 [ query_party_and_db_main_player_synced ]");
         Ok(result_synced)
     }
     
@@ -162,8 +149,6 @@ impl PlayerHandlerInterface {
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<bool, ErrorTypePlayerHandler> {
-        info!("Init: query_table_player_exists:");
-        
         // Get and Lock the mutex to access the database connection
         let conn = db.get_connection();
         let conn = conn.lock();
@@ -190,21 +175,16 @@ impl PlayerHandlerInterface {
             ErrorTypePlayerHandler::DBQueryFailed(format!("Failed: to verify 'player_table' exists"))
         })?
         == 1;
-    
-        info!("Player Table Exists: [{}]", does_exist );
-    
+
         Ok(does_exist)
     }
     
-    pub fn query_db_test_ref_and_main_player_exists(
+    pub fn query_db_player_count_less_than_2(
         &self,
         db: &Res<DatabaseConnection>,
     ) -> Result<bool, ErrorTypePlayerHandler> {
-        info!("Init: query_test_ref_and_main_player_exists:");
-        
-        let count = self.action_count_players_in_db(&db)?;
-        
         // count checks for at least the testing reference record and the main player
+        let count = self.action_count_players_in_db(&db)?;
         let results = if count < 2 {
             false
         } else {
