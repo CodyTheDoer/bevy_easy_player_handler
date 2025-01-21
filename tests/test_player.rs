@@ -14,333 +14,168 @@ mod tests {
     const PLAYER_TYPE_MAIN: PlayerType = PlayerType::PlayerMain;
     const PLAYER_TYPE_REMOTE: PlayerType = PlayerType::PlayerRemote;
 
-    // --- PlayerAiLocal Tests --- //
+    // --- macro --- //
 
-    #[test]
-    fn test_player_ai_local_new() -> Result<(), ErrorTypePlayerHandler> {
-        // Test case 1: All fields provided
-        {
+    macro_rules! test_player_new_all_data {
+        ($player_type_new:expr, $target_type:expr) => {{
             let email = Some(PLAYER_EMAIL.to_string());
             let username = Some(PLAYER_USERNAME.to_string());
             let uuid = Some(Uuid::now_v7());
 
-            let player = PlayerAiLocal::new(email.clone(), username.clone(), uuid, PLAYER_TYPE_AI_LOCAL);
+            let player = $player_type_new(email.clone(), username.clone(), uuid, $target_type);
+            let player_email = player.get_player_email()?.to_owned();
+            let player_type = player.get_player_type()?.to_owned();
+            let player_username = player.get_player_username()?.to_owned();
+            let player_uuid = player.get_player_id()?.to_owned();
 
-            let ref_1_player_email = player.get_player_email()?.to_owned();
-            let ref_1_player_username = player.get_player_username()?.to_owned();
-            let ref_1_player_uuid = player.get_player_id()?.to_owned();
-            let ref_1_player_type = player.get_player_type()?.to_owned();
+            assert_eq!(Some(player_email), email);
+            assert_eq!(Some(player_type), Some($target_type));
+            assert_eq!(Some(player_username), username);
+            assert_eq!(Some(player_uuid), uuid);
+        }};
+    }
 
-            assert_eq!(Some(ref_1_player_email), email);
-            assert_eq!(Some(ref_1_player_username), username);
-            assert_eq!(Some(ref_1_player_uuid), uuid);
-            assert_eq!(Some(ref_1_player_type), Some(PLAYER_TYPE_AI_LOCAL));
-        }
-        // Test case 2: Missing UUID (should generate a new one)
-        {    
+    macro_rules! test_player_new_uuid_missing {
+        ($player_type_new:expr, $target_type:expr) => {{
             let email = Some(ALT_PLAYER_EMAIL.to_string());
             let username = Some(ALT_PLAYER_USERNAME.to_string());
-            let player = PlayerAiLocal::new(email.clone(), username.clone(), None, PLAYER_TYPE_AI_LOCAL);
+            let player = $player_type_new(email.clone(), username.clone(), None, $target_type);
 
-            let ref_2_player_email = player.get_player_email()?.to_owned();
-            let ref_2_player_username = player.get_player_username()?.to_owned();
-            let ref_2_player_type = player.get_player_type()?.to_owned();
-            let ref_2_player_uuid = player.get_player_id()?.to_owned();
+            let player_email = player.get_player_email()?.to_owned();
+            let player_type = player.get_player_type()?.to_owned();
+            let player_username = player.get_player_username()?.to_owned();
+            let player_uuid = player.get_player_id()?.to_owned();
 
-            assert_eq!(Some(ref_2_player_email), email);
-            assert_eq!(Some(ref_2_player_username), username);
-            assert_eq!(Some(ref_2_player_type), Some(PLAYER_TYPE_AI_LOCAL));
+            assert_eq!(Some(player_email), email);
+            assert_eq!(Some(player_type), Some($target_type));
+            assert_eq!(Some(player_username), username);
 
             // Check that a new UUID was generated
-            assert!(ref_2_player_uuid.is_nil() == false);
-        }    
+            assert!(player_uuid.is_nil() == false);
+        }};
+    }
+
+    macro_rules! test_player_set {
+        ($player_type_new:expr, $target_type:expr) => {{
+            let email = Some(PLAYER_EMAIL.to_string());
+            let username = Some(PLAYER_USERNAME.to_string());
+            let uuid = Some(Uuid::now_v7());
+    
+            let mut player = $player_type_new(email.clone(), username.clone(), uuid.clone(), $target_type);
+    
+            let new_uuid = Uuid::new_v4();
+
+            player.set_player_email(ALT_PLAYER_EMAIL)?;
+            player.set_player_username(ALT_PLAYER_USERNAME)?;
+            player.set_player_id(new_uuid.clone())?;
+    
+            let player_email = player.get_player_email()?.to_owned();
+            let player_username = player.get_player_username()?.to_owned();
+            let player_uuid = player.get_player_id()?.to_owned();
+
+            assert_eq!(Some(player_email), Some(ALT_PLAYER_EMAIL.to_string()));
+            assert_eq!(Some(player_username), Some(ALT_PLAYER_USERNAME.to_string()));
+            assert_eq!(Some(player_uuid), Some(new_uuid));            
+        }};
+    }
+
+    // --- PlayerAiLocal Tests --- //
+
+    #[test]
+    fn test_player_ai_local_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_all_data!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
+        Ok(())
+    }
+
+    #[test]
+    fn test_player_ai_local_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_uuid_missing!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
         Ok(())
     }
 
     #[test]
     fn test_player_ai_local_set() -> Result<(), ErrorTypePlayerHandler> {
-        let email = Some(PLAYER_EMAIL.to_string());
-        let username = Some(PLAYER_USERNAME.to_string());
-        let uuid = Some(Uuid::now_v7());
-
-        let mut player = PlayerAiLocal::new(email.clone(), username.clone(), uuid.clone(), PLAYER_TYPE_AI_LOCAL);
-
-        let ref_player_email = player.get_player_email()?.to_owned();
-        let ref_player_username = player.get_player_username()?.to_owned();
-        let ref_player_uuid = player.get_player_id()?.to_owned();
-
-        player.set_player_email(ALT_PLAYER_EMAIL)?;
-        player.set_player_username(ALT_PLAYER_USERNAME)?;
-        player.set_player_id(Uuid::new_v4())?;
-
-        assert_eq!(Some(ref_player_email), email);
-        assert_eq!(Some(ref_player_username), username);
-        assert_eq!(Some(ref_player_uuid), uuid);
-
+        test_player_set!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
         Ok(())
     }
 
     // --- PlayerAiRemote Tests --- //
 
     #[test]
-    fn test_player_ai_remote_new() -> Result<(), ErrorTypePlayerHandler> {
-        // Test case 1: All fields provided
-        {
-            let email = Some(PLAYER_EMAIL.to_string());
-            let username = Some(PLAYER_USERNAME.to_string());
-            let uuid = Some(Uuid::now_v7());
+    fn test_player_ai_remote_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_all_data!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
+        Ok(())
+    }
 
-            let player = PlayerAiRemote::new(email.clone(), username.clone(), uuid, PLAYER_TYPE_AI_REMOTE);
-
-            let ref_1_player_email = player.get_player_email()?.to_owned();
-            let ref_1_player_username = player.get_player_username()?.to_owned();
-            let ref_1_player_uuid = player.get_player_id()?.to_owned();
-            let ref_1_player_type = player.get_player_type()?.to_owned();
-
-            assert_eq!(Some(ref_1_player_email), email);
-            assert_eq!(Some(ref_1_player_username), username);
-            assert_eq!(Some(ref_1_player_uuid), uuid);
-            assert_eq!(Some(ref_1_player_type), Some(PLAYER_TYPE_AI_REMOTE));
-        }
-        // Test case 2: Missing UUID (should generate a new one)
-        {    
-            let email = Some(ALT_PLAYER_EMAIL.to_string());
-            let username = Some(ALT_PLAYER_USERNAME.to_string());
-            let player = PlayerAiRemote::new(email.clone(), username.clone(), None, PLAYER_TYPE_AI_REMOTE);
-
-            let ref_2_player_email = player.get_player_email()?.to_owned();
-            let ref_2_player_username = player.get_player_username()?.to_owned();
-            let ref_2_player_type = player.get_player_type()?.to_owned();
-            let ref_2_player_uuid = player.get_player_id()?.to_owned();
-
-            assert_eq!(Some(ref_2_player_email), email);
-            assert_eq!(Some(ref_2_player_username), username);
-            assert_eq!(Some(ref_2_player_type), Some(PLAYER_TYPE_AI_REMOTE));
-
-            // Check that a new UUID was generated
-            assert!(ref_2_player_uuid.is_nil() == false);
-        }    
+    #[test]
+    fn test_player_ai_remote_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_uuid_missing!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
         Ok(())
     }
 
     #[test]
     fn test_player_ai_remote_set() -> Result<(), ErrorTypePlayerHandler> {
-        let email = Some(PLAYER_EMAIL.to_string());
-        let username = Some(PLAYER_USERNAME.to_string());
-        let uuid = Some(Uuid::now_v7());
-
-        let mut player = PlayerAiRemote::new(email.clone(), username.clone(), uuid.clone(), PLAYER_TYPE_AI_REMOTE);
-
-        let ref_player_email = player.get_player_email()?.to_owned();
-        let ref_player_username = player.get_player_username()?.to_owned();
-        let ref_player_uuid = player.get_player_id()?.to_owned();
-
-        player.set_player_email(ALT_PLAYER_EMAIL)?;
-        player.set_player_username(ALT_PLAYER_USERNAME)?;
-        player.set_player_id(Uuid::new_v4())?;
-
-        assert_eq!(Some(ref_player_email), email);
-        assert_eq!(Some(ref_player_username), username);
-        assert_eq!(Some(ref_player_uuid), uuid);
-
+        test_player_set!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
         Ok(())
     }
 
     // --- PlayerLocal Tests --- //
 
     #[test]
-    fn test_player_local_new() -> Result<(), ErrorTypePlayerHandler> {
-        // Test case 1: All fields provided
-        {
-            let email = Some(PLAYER_EMAIL.to_string());
-            let username = Some(PLAYER_USERNAME.to_string());
-            let uuid = Some(Uuid::now_v7());
+    fn test_player_local_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_all_data!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
+        Ok(())
+    }
 
-            let player = PlayerLocal::new(email.clone(), username.clone(), uuid, PLAYER_TYPE_LOCAL);
-
-            let ref_1_player_email = player.get_player_email()?.to_owned();
-            let ref_1_player_username = player.get_player_username()?.to_owned();
-            let ref_1_player_uuid = player.get_player_id()?.to_owned();
-            let ref_1_player_type = player.get_player_type()?.to_owned();
-
-            assert_eq!(Some(ref_1_player_email), email);
-            assert_eq!(Some(ref_1_player_username), username);
-            assert_eq!(Some(ref_1_player_uuid), uuid);
-            assert_eq!(Some(ref_1_player_type), Some(PLAYER_TYPE_LOCAL));
-        }
-        // Test case 2: Missing UUID (should generate a new one)
-        {    
-            let email = Some(ALT_PLAYER_EMAIL.to_string());
-            let username = Some(ALT_PLAYER_USERNAME.to_string());
-            let player = PlayerLocal::new(email.clone(), username.clone(), None, PLAYER_TYPE_LOCAL);
-
-            let ref_2_player_email = player.get_player_email()?.to_owned();
-            let ref_2_player_username = player.get_player_username()?.to_owned();
-            let ref_2_player_type = player.get_player_type()?.to_owned();
-            let ref_2_player_uuid = player.get_player_id()?.to_owned();
-
-            assert_eq!(Some(ref_2_player_email), email);
-            assert_eq!(Some(ref_2_player_username), username);
-            assert_eq!(Some(ref_2_player_type), Some(PLAYER_TYPE_LOCAL));
-
-            // Check that a new UUID was generated
-            assert!(ref_2_player_uuid.is_nil() == false);
-        }    
+    #[test]
+    fn test_player_local_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_uuid_missing!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
         Ok(())
     }
 
     #[test]
     fn test_player_local_set() -> Result<(), ErrorTypePlayerHandler> {
-        let email = Some(PLAYER_EMAIL.to_string());
-        let username = Some(PLAYER_USERNAME.to_string());
-        let uuid = Some(Uuid::now_v7());
-
-        let mut player = PlayerLocal::new(email.clone(), username.clone(), uuid.clone(), PLAYER_TYPE_LOCAL);
-
-        let ref_player_email = player.get_player_email()?.to_owned();
-        let ref_player_username = player.get_player_username()?.to_owned();
-        let ref_player_uuid = player.get_player_id()?.to_owned();
-
-        player.set_player_email(ALT_PLAYER_EMAIL)?;
-        player.set_player_username(ALT_PLAYER_USERNAME)?;
-        player.set_player_id(Uuid::new_v4())?;
-
-        assert_eq!(Some(ref_player_email), email);
-        assert_eq!(Some(ref_player_username), username);
-        assert_eq!(Some(ref_player_uuid), uuid);
-
+        test_player_set!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
         Ok(())
     }
 
     // --- PlayerMain Tests --- //
 
     #[test]
-    fn test_player_main_new() -> Result<(), ErrorTypePlayerHandler> {
-        // Test case 1: All fields provided
-        {
-            let email = Some(PLAYER_EMAIL.to_string());
-            let username = Some(PLAYER_USERNAME.to_string());
-            let uuid = Some(Uuid::now_v7());
+    fn test_player_main_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_all_data!(PlayerMain::new, PLAYER_TYPE_MAIN);
+        Ok(())
+    }
 
-            let player = PlayerMain::new(email.clone(), username.clone(), uuid, PLAYER_TYPE_MAIN);
-
-            let ref_1_player_email = player.get_player_email()?.to_owned();
-            let ref_1_player_username = player.get_player_username()?.to_owned();
-            let ref_1_player_uuid = player.get_player_id()?.to_owned();
-            let ref_1_player_type = player.get_player_type()?.to_owned();
-
-            assert_eq!(Some(ref_1_player_email), email);
-            assert_eq!(Some(ref_1_player_username), username);
-            assert_eq!(Some(ref_1_player_uuid), uuid);
-            assert_eq!(Some(ref_1_player_type), Some(PLAYER_TYPE_MAIN));
-        }
-        // Test case 2: Missing UUID (should generate a new one)
-        {    
-            let email = Some(ALT_PLAYER_EMAIL.to_string());
-            let username = Some(ALT_PLAYER_USERNAME.to_string());
-            let player = PlayerMain::new(email.clone(), username.clone(), None, PLAYER_TYPE_MAIN);
-
-            let ref_2_player_email = player.get_player_email()?.to_owned();
-            let ref_2_player_username = player.get_player_username()?.to_owned();
-            let ref_2_player_type = player.get_player_type()?.to_owned();
-            let ref_2_player_uuid = player.get_player_id()?.to_owned();
-
-            assert_eq!(Some(ref_2_player_email), email);
-            assert_eq!(Some(ref_2_player_username), username);
-            assert_eq!(Some(ref_2_player_type), Some(PLAYER_TYPE_MAIN));
-
-            // Check that a new UUID was generated
-            assert!(ref_2_player_uuid.is_nil() == false);
-        }    
+    #[test]
+    fn test_player_main_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_uuid_missing!(PlayerMain::new, PLAYER_TYPE_MAIN);
         Ok(())
     }
 
     #[test]
     fn test_player_main_set() -> Result<(), ErrorTypePlayerHandler> {
-        let email = Some(PLAYER_EMAIL.to_string());
-        let username = Some(PLAYER_USERNAME.to_string());
-        let uuid = Some(Uuid::now_v7());
-
-        let mut player = PlayerMain::new(email.clone(), username.clone(), uuid.clone(), PLAYER_TYPE_MAIN);
-
-        let ref_player_email = player.get_player_email()?.to_owned();
-        let ref_player_username = player.get_player_username()?.to_owned();
-        let ref_player_uuid = player.get_player_id()?.to_owned();
-
-        player.set_player_email(ALT_PLAYER_EMAIL)?;
-        player.set_player_username(ALT_PLAYER_USERNAME)?;
-        player.set_player_id(Uuid::new_v4())?;
-
-        assert_eq!(Some(ref_player_email), email);
-        assert_eq!(Some(ref_player_username), username);
-        assert_eq!(Some(ref_player_uuid), uuid);
-
+        test_player_set!(PlayerMain::new, PLAYER_TYPE_MAIN);
         Ok(())
     }
 
     // --- PlayerRemote Tests --- //
 
     #[test]
-    fn test_player_remote_new() -> Result<(), ErrorTypePlayerHandler> {
-        // Test case 1: All fields provided
-        {
-            let email = Some(PLAYER_EMAIL.to_string());
-            let username = Some(PLAYER_USERNAME.to_string());
-            let uuid = Some(Uuid::now_v7());
+    fn test_player_remote_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_all_data!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
+        Ok(())
+    }
 
-            let player = PlayerRemote::new(email.clone(), username.clone(), uuid, PLAYER_TYPE_REMOTE);
-
-            let ref_1_player_email = player.get_player_email()?.to_owned();
-            let ref_1_player_username = player.get_player_username()?.to_owned();
-            let ref_1_player_uuid = player.get_player_id()?.to_owned();
-            let ref_1_player_type = player.get_player_type()?.to_owned();
-
-            assert_eq!(Some(ref_1_player_email), email);
-            assert_eq!(Some(ref_1_player_username), username);
-            assert_eq!(Some(ref_1_player_uuid), uuid);
-            assert_eq!(Some(ref_1_player_type), Some(PLAYER_TYPE_REMOTE));
-        }
-        // Test case 2: Missing UUID (should generate a new one)
-        {    
-            let email = Some(ALT_PLAYER_EMAIL.to_string());
-            let username = Some(ALT_PLAYER_USERNAME.to_string());
-            let player = PlayerRemote::new(email.clone(), username.clone(), None, PLAYER_TYPE_REMOTE);
-
-            let ref_2_player_email = player.get_player_email()?.to_owned();
-            let ref_2_player_username = player.get_player_username()?.to_owned();
-            let ref_2_player_type = player.get_player_type()?.to_owned();
-            let ref_2_player_uuid = player.get_player_id()?.to_owned();
-
-            assert_eq!(Some(ref_2_player_email), email);
-            assert_eq!(Some(ref_2_player_username), username);
-            assert_eq!(Some(ref_2_player_type), Some(PLAYER_TYPE_REMOTE));
-
-            // Check that a new UUID was generated
-            assert!(ref_2_player_uuid.is_nil() == false);
-        }    
+    #[test]
+    fn test_player_remote_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
+        test_player_new_uuid_missing!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
         Ok(())
     }
 
     #[test]
     fn test_player_remote_set() -> Result<(), ErrorTypePlayerHandler> {
-        let email = Some(PLAYER_EMAIL.to_string());
-        let username = Some(PLAYER_USERNAME.to_string());
-        let uuid = Some(Uuid::now_v7());
-
-        let mut player = PlayerRemote::new(email.clone(), username.clone(), uuid.clone(), PLAYER_TYPE_REMOTE);
-
-        let ref_player_email = player.get_player_email()?.to_owned();
-        let ref_player_username = player.get_player_username()?.to_owned();
-        let ref_player_uuid = player.get_player_id()?.to_owned();
-
-        player.set_player_email(ALT_PLAYER_EMAIL)?;
-        player.set_player_username(ALT_PLAYER_USERNAME)?;
-        player.set_player_id(Uuid::new_v4())?;
-
-        assert_eq!(Some(ref_player_email), email);
-        assert_eq!(Some(ref_player_username), username);
-        assert_eq!(Some(ref_player_uuid), uuid);
-
+        test_player_set!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
         Ok(())
     }
 }
