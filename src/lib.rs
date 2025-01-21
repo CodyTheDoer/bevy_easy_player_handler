@@ -132,7 +132,7 @@ pub fn sync_plugin_party_main_player_uuid(
         Err(e) => {
             warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid failed... [{:?}]", e); 
             match party.get_main_player_uuid() {
-                Ok(uuid) => uuid,
+                Ok(uuid) => uuid.unwrap(),
                 Err(_) => {
                     warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid -> match party.get_main_player_uuid failed... [{:?}]", e); 
                     Uuid::now_v7()
@@ -284,7 +284,7 @@ pub trait Player { //  ->
     fn set_player_username(&mut self, new_username: &str) -> Result<(), ErrorTypePlayerHandler>;
 }
 
-#[derive(Component)]
+#[derive(Clone, Component)]
 pub struct PlayerComponent {
     pub player: Arc<Mutex<dyn Player + Send>>,
 }

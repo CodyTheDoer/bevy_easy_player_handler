@@ -22,12 +22,11 @@ macro_rules! player_query_get_player_lock {
                 Err(e) => return Err(ErrorTypePlayerHandler::PoisonErrorBox(format!("{}", e))),
             };
             let player_id = player_lock.get_player_id().unwrap();
-            if $target_uuid == player_id {
+            if $target_uuid == Some(*player_id) {
                 player_match = Some(player);
             }
         }
         player_match
-
     }};
 }
 
@@ -43,21 +42,19 @@ impl Party {
         } 
     }
 
-    pub fn clone_player_map(
+    pub fn get_player_map_clone(
         &self
     ) -> Result<HashMap<usize, Uuid>, ErrorTypePlayerHandler> {
-        let result = self.player_map.clone(); //
+        let result = self.player_map.clone();
         Ok(result)
     }
 
     pub fn get_player_map_active_player_uuid(
         &self
-    ) -> Result<&Uuid, ErrorTypePlayerHandler> {
-        let result = self.player_map.get(&self.active_player); //
-        if result.is_none() {
-            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_get_uuid")))
-        }
-        Ok(result.unwrap())
+    ) -> Result<Option<Uuid>, ErrorTypePlayerHandler> {
+        let active_player = self.active_player;
+        let result = self.player_map.get(&active_player); 
+        Ok(Some(*result.unwrap()))
     }
 
     pub fn clone_player(
@@ -228,14 +225,21 @@ impl Party {
         player_query: &Query<&PlayerComponent>, 
         new_uuid: Uuid
     ) -> Result<(), ErrorTypePlayerHandler> {
-        let active_player_uuid = *self.get_player_map_active_player_uuid()?;
+        let active_player_uuid_option = self.get_player_map_active_player_uuid()?;
+        let active_player_uuid = active_player_uuid_option.clone();
+        
+        if active_player_uuid.is_none() {
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_uuid.is_none()")))
+        }
+        let active_player_uuid = active_player_uuid.unwrap();
         if active_player_uuid == new_uuid {
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_set_uuid failed: new id matches existing")));
         }
         self.set_active_player_uuid_player_component(player_query, &new_uuid)?;
         self.set_active_player_uuid_player_map(&new_uuid)?;
+    
         let updated_active_player_uuid = self.get_player_map_active_player_uuid()?;
-        if active_player_uuid == *updated_active_player_uuid {
+        if Some(active_player_uuid) == updated_active_player_uuid {
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_set_uuid failed: id update failed, id matches original")));
         }
         Ok(())
@@ -258,7 +262,7 @@ impl Party {
         self.set_active_player_uuid_player_component(player_query, &new_uuid)?;
         self.set_active_player_uuid_player_map(&new_uuid)?;
         let updated_active_player_uuid = self.get_player_map_active_player_uuid()?;
-        if &active_player_uuid == updated_active_player_uuid {
+        if Some(active_player_uuid) == updated_active_player_uuid {
             return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("active_player_set_uuid failed: id update failed, id matches original")));
         }
         Ok(())
@@ -621,10 +625,19 @@ impl Party {
 
     pub fn get_main_player_uuid(
         &self,
+    ) -> Result<Option<Uuid>, ErrorTypePlayerHandler> {
+        let result = self.main_player_uuid;
+        Ok(result)
+    }
+
+    pub fn set_main_player_uuid(
+        &mut self,
+        target_uuid: &Uuid,
     ) -> Result<Uuid, ErrorTypePlayerHandler> {
+        self.main_player_uuid = Some(*target_uuid);
         let result = self.main_player_uuid;
         if result.is_none() {
-            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("get_main_player_uuid failed... if result.is_none()")))
+            return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("set_main_player_uuid failed... New Uuid did not set properly")))
         }
         Ok(result.unwrap())
     }
@@ -636,7 +649,7 @@ impl Party {
         plugin: &mut ResMut<BevyEasyPlayerHandlerPlugin>,
     ) -> Result<(), ErrorTypePlayerHandler> {
         self.set_active_player_index(1)?;
-        let main_player_id = self.get_main_player_uuid()?;
+        let main_player_id = self.get_main_player_uuid()?.unwrap();
         // let main_player_id = main_player_id.expect("main_player_id unwrap failed");
         for (entity, player) in entity_player_query.iter() {
             let player_mutex = match player.player.lock() {

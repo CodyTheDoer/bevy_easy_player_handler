@@ -16,7 +16,7 @@ mod tests {
 
     // --- macro --- //
 
-    macro_rules! test_player_new_all_data {
+    macro_rules! player_new_all_data {
         ($player_type_new:expr, $target_type:expr) => {{
             let email = Some(PLAYER_EMAIL.to_string());
             let username = Some(PLAYER_USERNAME.to_string());
@@ -35,7 +35,7 @@ mod tests {
         }};
     }
 
-    macro_rules! test_player_new_uuid_missing {
+    macro_rules! player_new_uuid_missing {
         ($player_type_new:expr, $target_type:expr) => {{
             let email = Some(ALT_PLAYER_EMAIL.to_string());
             let username = Some(ALT_PLAYER_USERNAME.to_string());
@@ -55,7 +55,7 @@ mod tests {
         }};
     }
 
-    macro_rules! test_player_set {
+    macro_rules! player_set {
         ($player_type_new:expr, $target_type:expr) => {{
             let email = Some(PLAYER_EMAIL.to_string());
             let username = Some(PLAYER_USERNAME.to_string());
@@ -83,19 +83,19 @@ mod tests {
 
     #[test]
     fn test_player_ai_local_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_all_data!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
+        player_new_all_data!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
         Ok(())
     }
 
     #[test]
     fn test_player_ai_local_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_uuid_missing!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
+        player_new_uuid_missing!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
         Ok(())
     }
 
     #[test]
     fn test_player_ai_local_set() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_set!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
+        player_set!(PlayerAiLocal::new, PLAYER_TYPE_AI_LOCAL);
         Ok(())
     }
 
@@ -103,19 +103,19 @@ mod tests {
 
     #[test]
     fn test_player_ai_remote_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_all_data!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
+        player_new_all_data!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
         Ok(())
     }
 
     #[test]
     fn test_player_ai_remote_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_uuid_missing!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
+        player_new_uuid_missing!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
         Ok(())
     }
 
     #[test]
     fn test_player_ai_remote_set() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_set!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
+        player_set!(PlayerAiRemote::new, PLAYER_TYPE_AI_REMOTE);
         Ok(())
     }
 
@@ -123,19 +123,19 @@ mod tests {
 
     #[test]
     fn test_player_local_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_all_data!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
+        player_new_all_data!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
         Ok(())
     }
 
     #[test]
     fn test_player_local_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_uuid_missing!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
+        player_new_uuid_missing!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
         Ok(())
     }
 
     #[test]
     fn test_player_local_set() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_set!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
+        player_set!(PlayerLocal::new, PLAYER_TYPE_LOCAL);
         Ok(())
     }
 
@@ -143,19 +143,19 @@ mod tests {
 
     #[test]
     fn test_player_main_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_all_data!(PlayerMain::new, PLAYER_TYPE_MAIN);
+        player_new_all_data!(PlayerMain::new, PLAYER_TYPE_MAIN);
         Ok(())
     }
 
     #[test]
     fn test_player_main_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_uuid_missing!(PlayerMain::new, PLAYER_TYPE_MAIN);
+        player_new_uuid_missing!(PlayerMain::new, PLAYER_TYPE_MAIN);
         Ok(())
     }
 
     #[test]
     fn test_player_main_set() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_set!(PlayerMain::new, PLAYER_TYPE_MAIN);
+        player_set!(PlayerMain::new, PLAYER_TYPE_MAIN);
         Ok(())
     }
 
@@ -163,19 +163,19 @@ mod tests {
 
     #[test]
     fn test_player_remote_new_all_data() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_all_data!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
+        player_new_all_data!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
         Ok(())
     }
 
     #[test]
     fn test_player_remote_new_uuid_missing() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_new_uuid_missing!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
+        player_new_uuid_missing!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
         Ok(())
     }
 
     #[test]
     fn test_player_remote_set() -> Result<(), ErrorTypePlayerHandler> {
-        test_player_set!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
+        player_set!(PlayerRemote::new, PLAYER_TYPE_REMOTE);
         Ok(())
     }
 }
