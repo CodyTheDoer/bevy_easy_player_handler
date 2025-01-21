@@ -477,42 +477,6 @@ mod tests {
 
     #[test]
     fn test_party_player_map_swap_players() -> Result<(), ErrorTypePlayerHandler> {
-        // pub fn player_map_swap_players(
-        //     &mut self, 
-        //     old_index: usize, 
-        //     new_index: usize,
-        // ) -> Result<(), ErrorTypePlayerHandler> {
-        //     if old_index == new_index {
-        //         return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("reorder_players failed... new == old, No change...")))
-        //     }
-        //     let old_uuid = self
-        //         .player_map
-        //         .iter()
-        //         .find(|(index, _)| *index == &old_index)
-        //         .map(|(_, uuid)| *uuid);
-        //     if old_uuid.is_none() {
-        //         return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("old_uuid.is_none()")));
-        //     };
-        //     let old_uuid = old_uuid.unwrap();
-            
-        //     let new_uuid = self
-        //         .player_map
-        //         .iter()
-        //         .find(|(index, _)| *index == &new_index)
-        //         .map(|(_, uuid)| *uuid);
-        //     if new_uuid.is_none() {
-        //         return Err(ErrorTypePlayerHandler::PartyActionFailed(format!("old_uuid.is_none()")));
-        //     };
-        //     let new_uuid = new_uuid.unwrap();
-            
-        //     self.set_active_player_index(old_index)?;
-        //     self.set_active_player_uuid_player_map(&new_uuid)?;
-        //     self.set_active_player_index(new_index)?;
-        //     self.set_active_player_uuid_player_map(&old_uuid)?;
-    
-        //     Ok(())
-        // }
-        // Build the party and add some players
         let mut party: Party = Party::new(); 
         let original_player_1_uuid: Uuid = Uuid::new_v4();
         let original_player_2_uuid: Uuid = Uuid::now_v7();
