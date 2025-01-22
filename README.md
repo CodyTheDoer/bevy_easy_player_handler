@@ -22,6 +22,8 @@ rusqlite = { version = "0.29.0", features = ["bundled"] }
 A more thorough example is available in the integration_example directory.
 You'll need to setup the plugin in your main function. 
 
+You will need to ensure you have built an SQLite file "game_data.db" and placed it in your projects base directory, as per the example setup.
+
 ```rust 
 // --- main.rs --- //
 use bevy::prelude::*;
@@ -39,7 +41,7 @@ fn main() {
         .add_plugins(BevyEasyPlayerHandlerPlugin::init()
             .main_player_email("PLAYER_EMAIL")              // <--- consider a flexible data entry pipeline like dotenv
             .main_player_username("PLAYER_USERNAME")
-            .party_size(6)                                  // <--- Designate your party size here, limits the spawnable players count in the game
+            .party_size(6)                                  // <--- Designate your party size here, limits the spawnable players count in the game, defaults to 1
             .build()                                        // <--- Explicitly build the plugin 
         )
         .run();
