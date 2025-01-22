@@ -40,7 +40,7 @@ fn main() {
             .main_player_email("PLAYER_EMAIL")              // <--- consider a flexible data entry pipeline like dotenv
             .main_player_username("PLAYER_USERNAME")
             .party_size(6)                                  // <--- Designate your party size here, limits the spawnable players count in the game
-            .build()                                        // <--- Explicitely build the plugin 
+            .build()                                        // <--- Explicitly build the plugin 
         )
         .run();
 }
