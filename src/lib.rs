@@ -14,6 +14,15 @@ use uuid::Uuid;
 pub mod database;
 pub mod handlers;
 
+pub mod prelude {
+    pub use crate::{
+        BevyEasyPlayerHandlerPlugin,
+        Party,
+        PlayerHandlerInterface,
+        PlayerComponent,
+    };
+}
+
 #[derive(Clone, Resource)]
 pub struct BevyEasyPlayerHandlerPlugin {
     main_player_email: Option<String>,
@@ -118,29 +127,103 @@ impl Plugin for BevyEasyPlayerHandlerPlugin {
         // Add the startup protocol system
         app.add_systems(Startup, PlayerHandlerInterface::start_up_protocol);
         app.add_systems(Update, on_player_component_spawned);
+        app.add_systems(Update, on_player_component_removal);
         app.add_systems(Update, sync_plugin_party_main_player_uuid);
         app.add_systems(Update, PlayerHandlerInterface::start_up_protocol_finish.run_if(run_once()));
     }
 }
 
-pub fn sync_plugin_party_main_player_uuid(
+// System to trigger when PlayerComponent is spawned
+fn on_player_component_removal(
+    mut commands: Commands,
+    db: Res<DatabaseConnection>,
     mut party: ResMut<Party>,
-    plugin: Res<BevyEasyPlayerHandlerPlugin>
+    phi: ResMut<PlayerHandlerInterface>,
+    player_query: Query<&PlayerComponent>,
+    mut removed: RemovedComponents<PlayerComponent>,
 ) {
-    let new_uuid = match plugin.get_main_player_uuid() {
-        Ok(uuid) => uuid.unwrap().to_owned(),
-        Err(e) => {
-            warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid failed... [{:?}]", e); 
-            match party.get_main_player_uuid() {
-                Ok(uuid) => uuid.unwrap(),
-                Err(_) => {
-                    warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid -> match party.get_main_player_uuid failed... [{:?}]", e); 
-                    Uuid::now_v7()
+    let mut removed_event: bool = false;
+    for _ in removed.read() {
+        removed_event = true;
+    }
+    if removed_event {
+        let index_minus_one = match party.get_active_player_index() {
+            Ok(value) => value - 1,
+            Err(_) => {
+                panic!("on_player_component_removal -> match party.get_active_player_index failed...");
+            },
+        };
+        match party.set_active_player_index(index_minus_one) {
+            Ok(()) => (),
+            Err(_) => warn!("on_player_component_removal -> party.set_active_player_index(index_minus_one) failed..."),
+        };
+        let player_map_ids = match party.get_player_map_clone() {
+            Ok(result) => result,
+            Err(_) => {
+                panic!("on_player_component_removal -> match party.get_player_map_clone failed...");
+            },
+        };
+        println!("player_map_ids [{:?}]", &player_map_ids);
+        let party_size = player_map_ids.len();
+        println!("party_size [{:?}]", &party_size);
+        let mut player_vec_ids: Vec<(usize, Uuid)> = Vec::new();
+        for n in 0..party_size {
+            let ref_uuid = match player_map_ids.get(&( n + 1 )) {
+                Some(value) => value.to_owned(),
+                None => {
+                    panic!("on_player_component_removal -> match player_map_ids.get(&n) failed...");
                 },
+            };
+            println!("loop player_vec_ids [{}]::[{}]", ( n + 1 ), &ref_uuid);
+            player_vec_ids.push((( n + 1 ), ref_uuid));
+        }
+        for player in player_query.iter() {
+            let player_mutex = match player.player.lock() {
+                Ok(result) => result,
+                Err(_) => {
+                    panic!("on_player_component_removal -> match match player.player.lock failed...");
+                },
+            };
+            let player_uuid = match player_mutex.get_player_id() {
+                Ok(value) => value.to_owned(),
+                Err(_) => {
+                    panic!("on_player_component_removal -> match player_mutex.get_player_id() failed...");
+                },
+            };
+            println!("before: player_vec_ids [{:?}]", &player_vec_ids);
+            player_vec_ids = player_vec_ids
+                .into_iter()
+                .filter_map(|(usize, player)| 
+                    if player == player_uuid {
+                        return None; 
+                    } else {
+                        return Some((usize, player));
+                    } 
+                )
+                .collect();
+            println!("after: player_vec_ids [{:?}]", &player_vec_ids);
+        }
+        let main_player_uuid = match party.get_main_player_uuid() {
+            Ok(result) => result,
+            Err(_) => {
+                warn!("on_player_component_removal -> match party.get_main_player_uuid failed...");
+                let uuid: Uuid = Uuid::now_v7();
+                Some(uuid)
+            },
+        };
+        for player in player_vec_ids.iter() {
+            if Some(player.1) != main_player_uuid {
+                party.player_map.remove(&player.0);
+            } else {
+                match phi.pipeline_db_and_party_add_main_player_from_db_to_party(&mut commands, &db, &player.1) {
+                    Ok(()) => (),
+                    Err(_) => {
+                        warn!("on_player_component_removal -> match party.get_main_player_uuid failed...");
+                    },
+                }
             }
         }
-    };
-    party.main_player_uuid = Some(new_uuid);
+    }
 }
 
 // System to trigger when PlayerComponent is spawned
@@ -254,6 +337,26 @@ pub fn on_player_component_spawned(
         };
         ()
     }
+}
+
+pub fn sync_plugin_party_main_player_uuid(
+    mut party: ResMut<Party>,
+    plugin: Res<BevyEasyPlayerHandlerPlugin>
+) {
+    let new_uuid = match plugin.get_main_player_uuid() {
+        Ok(uuid) => uuid.unwrap().to_owned(),
+        Err(e) => {
+            warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid failed... [{:?}]", e); 
+            match party.get_main_player_uuid() {
+                Ok(uuid) => uuid.unwrap(),
+                Err(_) => {
+                    warn!("sync_plugin_party_main_player_uuid -> match plugin.get_main_player_uuid -> match party.get_main_player_uuid failed... [{:?}]", e); 
+                    Uuid::now_v7()
+                },
+            }
+        }
+    };
+    party.main_player_uuid = Some(new_uuid);
 }
 
 #[derive(Resource)]

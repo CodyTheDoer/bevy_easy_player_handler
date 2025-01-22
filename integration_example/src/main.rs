@@ -1,16 +1,7 @@
 use bevy::prelude::*;
 
-use bevy_easy_player_handler::{
-    BevyEasyPlayerHandlerPlugin,
-    Party,
-    PlayerHandlerInterface,
-    PlayerComponent,
-};
-
-use bevy_easy_shared_definitions::{
-    ErrorTypePlayerHandler,
-    DatabaseConnection,
-};
+use bevy_easy_player_handler::prelude::*;
+use bevy_easy_shared_definitions::prelude::*;
 
 use bevy_easy_vec_ui::{
     BevyEasyVecUiPlugin, 
@@ -250,7 +241,7 @@ pub fn easy_vec_ui(
         format!("[ Numpad 6 ] player_map_and_component_remove_all_players [ PartyTarget ] "),
         format!("[ Numpad 5 ] pipeline_db_and_party_action_remove_player [ DBTarget ]"),
         format!("[ Numpad 4 ] pipeline_db_and_party_add_player_from_db_to_party [ DBTarget ]"),
-        format!("[ Numpad 3 ]  "),
+        format!("[ Numpad 3 ] commands.entity( PartyTarget ).despawn_recursive()"),
         format!("[ Numpad 2 ] pipeline_db_and_party_add_new_synced_player_local / [ Numpad 2 + Shift ] ...player_ai_local"),
         format!("[ Numpad 1 ] party.players_remove_player [ PartyTarget ]"),
         format!("________________________________________________________________________________________________________________"),
@@ -439,6 +430,25 @@ pub fn temp_interface(
     if keys.just_released(KeyCode::Numpad3) {
         info!("just_released: Numpad3");  
         {
+            let stored_uuid = match party.clone_active_player_uuid(&player_query) {
+                Ok(id) => id,
+                Err(e) => {
+                    warn!("Error: temp_interface -> party.clone_active_player_uuid() Error:[{:?}]", e);
+                    return ()
+                },
+            };
+            for player in entity_player_query.iter() {
+                let player_mutex = match player.1.player.lock() {
+                    Ok(player_mutex) => player_mutex,
+                    Err(e) => {
+                        panic!("Error: temp_interface -> match player.1.player.lock() Error:[{:?}]", e);
+                    },
+                };
+                let player_uuid = player_mutex.get_player_id().expect("Error: temp_interface -> player_mutex.get_player_id failed...");
+                if player_uuid == &stored_uuid {
+                    commands.entity(player.0).despawn_recursive();
+                }
+            }
         }
     };
 

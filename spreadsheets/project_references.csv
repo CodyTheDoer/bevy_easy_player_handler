@@ -45,7 +45,6 @@ File,Item Type,Name
 .\src\handlers\party.rs,ImplFn,Party::clone_active_player_uuid
 .\src\handlers\party.rs,ImplFn,Party::clone_main_player_uuid
 .\src\handlers\party.rs,ImplFn,Party::clone_player
-.\src\handlers\party.rs,ImplFn,Party::clone_player_map
 .\src\handlers\party.rs,ImplFn,Party::get_active_player_index
 .\src\handlers\party.rs,ImplFn,Party::get_all_players_ids
 .\src\handlers\party.rs,ImplFn,Party::get_all_players_ids_and_types
@@ -59,6 +58,7 @@ File,Item Type,Name
 .\src\handlers\party.rs,ImplFn,Party::get_player_count_party
 .\src\handlers\party.rs,ImplFn,Party::get_player_count_remote
 .\src\handlers\party.rs,ImplFn,Party::get_player_map_active_player_uuid
+.\src\handlers\party.rs,ImplFn,Party::get_player_map_clone
 .\src\handlers\party.rs,ImplFn,Party::init_main_player_uuid_player_map
 .\src\handlers\party.rs,ImplFn,Party::new
 .\src\handlers\party.rs,ImplFn,Party::player_map_and_component_remove_all_players
@@ -74,11 +74,11 @@ File,Item Type,Name
 .\src\handlers\party.rs,ImplFn,Party::set_active_player_uuid_player_component
 .\src\handlers\party.rs,ImplFn,Party::set_active_player_uuid_player_map
 .\src\handlers\party.rs,ImplFn,Party::set_active_player_uuid_player_map_and_component
+.\src\handlers\party.rs,ImplFn,Party::set_main_player_uuid
 .\src\handlers\party.rs,ImplFn,Party::verify_player_exists_player_component
 .\src\handlers\party.rs,ImplFn,Party::verify_player_exists_player_map_and_component
 .\src\handlers\party.rs,ImplFn,Party::verify_player_exists_player_map_index
 .\src\handlers\party.rs,ImplFn,Party::verify_player_exists_player_map_uuid
-.\src\handlers\player.rs,ImplFn,PlayerAiLocal::clone_with_new_id
 .\src\handlers\player.rs,ImplFn,PlayerAiLocal::get_player_email
 .\src\handlers\player.rs,ImplFn,PlayerAiLocal::get_player_id
 .\src\handlers\player.rs,ImplFn,PlayerAiLocal::get_player_type
@@ -87,7 +87,6 @@ File,Item Type,Name
 .\src\handlers\player.rs,ImplFn,PlayerAiLocal::set_player_email
 .\src\handlers\player.rs,ImplFn,PlayerAiLocal::set_player_id
 .\src\handlers\player.rs,ImplFn,PlayerAiLocal::set_player_username
-.\src\handlers\player.rs,ImplFn,PlayerAiRemote::clone_with_new_id
 .\src\handlers\player.rs,ImplFn,PlayerAiRemote::get_player_email
 .\src\handlers\player.rs,ImplFn,PlayerAiRemote::get_player_id
 .\src\handlers\player.rs,ImplFn,PlayerAiRemote::get_player_type
@@ -96,7 +95,6 @@ File,Item Type,Name
 .\src\handlers\player.rs,ImplFn,PlayerAiRemote::set_player_email
 .\src\handlers\player.rs,ImplFn,PlayerAiRemote::set_player_id
 .\src\handlers\player.rs,ImplFn,PlayerAiRemote::set_player_username
-.\src\handlers\player.rs,ImplFn,PlayerLocal::clone_with_new_id
 .\src\handlers\player.rs,ImplFn,PlayerLocal::get_player_email
 .\src\handlers\player.rs,ImplFn,PlayerLocal::get_player_id
 .\src\handlers\player.rs,ImplFn,PlayerLocal::get_player_type
@@ -105,7 +103,6 @@ File,Item Type,Name
 .\src\handlers\player.rs,ImplFn,PlayerLocal::set_player_email
 .\src\handlers\player.rs,ImplFn,PlayerLocal::set_player_id
 .\src\handlers\player.rs,ImplFn,PlayerLocal::set_player_username
-.\src\handlers\player.rs,ImplFn,PlayerMain::clone_with_new_id
 .\src\handlers\player.rs,ImplFn,PlayerMain::get_player_email
 .\src\handlers\player.rs,ImplFn,PlayerMain::get_player_id
 .\src\handlers\player.rs,ImplFn,PlayerMain::get_player_type
@@ -114,7 +111,6 @@ File,Item Type,Name
 .\src\handlers\player.rs,ImplFn,PlayerMain::set_player_email
 .\src\handlers\player.rs,ImplFn,PlayerMain::set_player_id
 .\src\handlers\player.rs,ImplFn,PlayerMain::set_player_username
-.\src\handlers\player.rs,ImplFn,PlayerRemote::clone_with_new_id
 .\src\handlers\player.rs,ImplFn,PlayerRemote::get_player_email
 .\src\handlers\player.rs,ImplFn,PlayerRemote::get_player_id
 .\src\handlers\player.rs,ImplFn,PlayerRemote::get_player_type
@@ -138,7 +134,6 @@ File,Item Type,Name
 .\src\lib.rs,ImplFn,BevyEasyPlayerHandlerPlugin::set_party_size_limit
 .\src\lib.rs,Struct,DBPlayer
 .\src\lib.rs,Struct,Party
-.\src\lib.rs,TraitFn,Player::clone_with_new_id
 .\src\lib.rs,TraitFn,Player::get_player_email
 .\src\lib.rs,TraitFn,Player::get_player_id
 .\src\lib.rs,TraitFn,Player::get_player_type
@@ -155,5 +150,6 @@ File,Item Type,Name
 .\src\lib.rs,Struct,PlayerMain
 .\src\lib.rs,Struct,PlayerRemote
 .\src\lib.rs,Enum,PlayerType
+.\src\lib.rs,Function,on_player_component_removal
 .\src\lib.rs,Function,on_player_component_spawned
 .\src\lib.rs,Function,sync_plugin_party_main_player_uuid
